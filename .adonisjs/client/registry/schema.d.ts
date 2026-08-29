@@ -1267,6 +1267,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/campaigns/campaigns_controller').default['show']>>>
     }
   }
+  'campaigns.upcoming': {
+    methods: ["GET","HEAD"]
+    pattern: '/organizations/:organizationId/projects/:projectId/campaigns/:campaignId/upcoming'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue, ParamValue]
+      params: { organizationId: ParamValue; projectId: ParamValue; campaignId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/campaigns/campaigns_controller').default['upcoming']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/campaigns/campaigns_controller').default['upcoming']>>>
+    }
+  }
   'campaigns.update': {
     methods: ["PATCH"]
     pattern: '/organizations/:organizationId/projects/:projectId/campaigns/:campaignId'

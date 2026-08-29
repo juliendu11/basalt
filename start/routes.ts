@@ -446,6 +446,12 @@ router
                   .get('/campaigns/:campaignId', [controllers.campaigns.Campaigns, 'show'])
                   .as('campaigns.show')
                 router
+                  .get('/campaigns/:campaignId/upcoming', [
+                    controllers.campaigns.Campaigns,
+                    'upcoming',
+                  ])
+                  .as('campaigns.upcoming')
+                router
                   .patch('/campaigns/:campaignId', [controllers.campaigns.Campaigns, 'update'])
                   .as('campaigns.update')
                 router

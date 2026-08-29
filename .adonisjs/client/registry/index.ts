@@ -636,6 +636,12 @@ const routes = {
     tokens: [{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId","type":0,"val":"organizations","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId","type":1,"val":"organizationId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId","type":0,"val":"projects","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId","type":1,"val":"projectId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId","type":0,"val":"campaigns","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId","type":1,"val":"campaignId","end":""}],
     types: placeholder as Registry['campaigns.show']['types'],
   },
+  'campaigns.upcoming': {
+    methods: ["GET","HEAD"],
+    pattern: '/organizations/:organizationId/projects/:projectId/campaigns/:campaignId/upcoming',
+    tokens: [{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId/upcoming","type":0,"val":"organizations","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId/upcoming","type":1,"val":"organizationId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId/upcoming","type":0,"val":"projects","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId/upcoming","type":1,"val":"projectId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId/upcoming","type":0,"val":"campaigns","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId/upcoming","type":1,"val":"campaignId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/campaigns/:campaignId/upcoming","type":0,"val":"upcoming","end":""}],
+    types: placeholder as Registry['campaigns.upcoming']['types'],
+  },
   'campaigns.update': {
     methods: ["PATCH"],
     pattern: '/organizations/:organizationId/projects/:projectId/campaigns/:campaignId',

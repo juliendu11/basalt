@@ -109,6 +109,7 @@ export type ScannedRoutes = {
     'campaigns.create': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.show': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
+    'campaigns.upcoming': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
     'campaigns.update': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
     'campaigns.duplicate': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
     'campaigns.activate': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
@@ -182,6 +183,7 @@ export type ScannedRoutes = {
     'campaigns.index': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.create': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.show': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
+    'campaigns.upcoming': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
     'campaigns.builder.show': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
     'campaigns.versions.show': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue,'versionId': ParamValue} }
     'statistics.dashboard': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
@@ -238,6 +240,7 @@ export type ScannedRoutes = {
     'campaigns.index': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.create': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.show': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
+    'campaigns.upcoming': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
     'campaigns.builder.show': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
     'campaigns.versions.show': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue,'versionId': ParamValue} }
     'statistics.dashboard': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
