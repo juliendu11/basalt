@@ -1,0 +1,98 @@
+name: Tests
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.8.3
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: basalt_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
+      # Functional tests exercise a real SMTP server on :1025
+      # (tests/functional/smtp/*), mirroring mailcatcher in docker-compose.dev.yml.
+      mailcatcher:
+        image: dockage/mailcatcher:0.9.0
+        ports:
+          - 1025:1025
+          - 1080:1080
+
+    env:
+      TZ: UTC
+      NODE_ENV: test
+      PORT: 3333
+      # `localhost` (not 127.0.0.1) — tracking/unsubscribe URLs are built from
+      # APP_URL and some tests assert the `localhost` host literally.
+      HOST: localhost
+      LOG_LEVEL: silent
+      # Throwaway key for CI only — not a secret.
+      APP_KEY: PxYfMhTQ2sV8nD4kR7wZ1jL5cB0gH3aN
+      APP_URL: http://localhost:3333
+      SESSION_DRIVER: memory
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_DATABASE: basalt_test
+      LIMITER_STORE: redis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      MAIL_MAILER: smtp
+      MAIL_FROM_NAME: Basalt CI
+      MAIL_FROM_ADDRESS: ci@example.com
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: 1025
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Pinned to match the Dockerfile — floating node:24 has hit an
+          # early-24.x WHATWG URL-parser regression that breaks `node ace`.
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for mailcatcher SMTP
+        run: |
+          for i in $(seq 1 30); do
+            if (echo > /dev/tcp/127.0.0.1/1025) >/dev/null 2>&1; then
+              echo "mailcatcher SMTP is up"; exit 0
+            fi
+            echo "waiting for mailcatcher ($i/30)"; sleep 2
+          done
+          echo "mailcatcher SMTP never came up"; exit 1
+
+      - name: Run migrations
+        run: node ace migration:run --force
+
+      - name: Run tests
+        run: node ace test

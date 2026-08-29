@@ -1,0 +1,42 @@
+version: '3.7'
+services:
+  mariaDB:
+    container_name: basalt-mariadb
+    hostname: mariadb
+    image: 'mariadb:11.8.3'
+    ports:
+      - '3306:3306'
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: basalt-pma
+    links:
+      - mariaDB
+    environment:
+      PMA_HOST: mariaDB
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 300M
+    ports:
+      - '8082:80'
+  cache:
+    image: 'redis:6.2-alpine'
+    container_name: basalt-redis
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning
+  mailcatcher:
+    container_name: basalt-mailcatcher
+    image: dockage/mailcatcher:0.9.0
+    expose:
+      - '1025'
+    ports:
+      - '1080:1080'
+      - '1025:1025'
+  pushnotificationcatcher:
+    container_name: basalt-pushnotificationcatcher
+    image: juliendu11/push-notification-catcher:latest
+    expose:
+      - '6555'
+    ports:
+      - '6555:6555'
