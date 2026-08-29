@@ -6,6 +6,7 @@ import ContactPolicy from '#policies/contact_policy'
 import ContactService from '#services/contacts/contact_service'
 import ContactQueryService from '#services/contacts/contact_query_service'
 import UnsubscribeService from '#services/unsubscribe/unsubscribe_service'
+import UpcomingSendsService from '#services/automation/upcoming_sends_service'
 import { createContactValidator, updateContactValidator } from '#validators/contact'
 import ContactTransformer from '#transformers/contact_transformer'
 import TagTransformer from '#transformers/tag_transformer'
@@ -16,6 +17,7 @@ import type { ContactStatus } from '#models/contact'
 const contactService = new ContactService()
 const contactQueryService = new ContactQueryService()
 const unsubscribeService = new UnsubscribeService()
+const upcomingSendsService = new UpcomingSendsService()
 
 export default class ContactsController {
   async index({ project, request, inertia, serialize }: HttpContext) {
@@ -82,9 +84,21 @@ export default class ContactsController {
       return inertia.render('errors/not_found', {})
     }
 
+    const upcomingSends = await upcomingSendsService.forContact(contact)
+
     return inertia.render('contacts/show', {
       contact: ContactTransformer.transform(contact),
       project: ProjectTransformer.transform(project),
+      upcomingSends: upcomingSends.map((send) => ({
+        campaignId: send.campaignId,
+        campaignName: send.campaignName,
+        campaignStatus: send.campaignStatus,
+        nodeId: send.nodeId,
+        emailId: send.emailId,
+        subject: send.subject,
+        estimatedSendAt: send.estimatedSendAt.toISO(),
+        certainty: send.certainty,
+      })),
     })
   }
 

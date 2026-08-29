@@ -4,6 +4,7 @@ import CampaignVersion from '#models/campaign_version'
 import CampaignPolicy from '#policies/campaign_policy'
 import CampaignService from '#services/campaigns/campaign_service'
 import CampaignBuilderService from '#services/campaigns/campaign_builder_service'
+import UpcomingSendsService from '#services/automation/upcoming_sends_service'
 import { createCampaignValidator, updateCampaignValidator } from '#validators/campaign'
 import CampaignTransformer from '#transformers/campaign_transformer'
 import CampaignVersionTransformer from '#transformers/campaign_version_transformer'
@@ -12,6 +13,7 @@ import BusinessRuleViolation from '#exceptions/business_rule_violation'
 
 const campaignService = new CampaignService()
 const campaignBuilderService = new CampaignBuilderService()
+const upcomingSendsService = new UpcomingSendsService()
 
 export default class CampaignsController {
   async index({ project, inertia }: HttpContext) {
@@ -70,6 +72,46 @@ export default class CampaignsController {
       project: ProjectTransformer.transform(project),
       campaign: CampaignTransformer.transform(campaign),
       versions: CampaignVersionTransformer.transform(versions),
+    })
+  }
+
+  /**
+   * The emails this campaign's live executions are going to send next, and
+   * to which contact — projected from each `pending`/`waiting`
+   * `campaign_execution` by walking the published graph forward
+   * (`UpcomingSendsService`). Read-only for every project role, same gate
+   * as `show`/`StatisticsController` (project membership only).
+   */
+  async upcoming({ project, params, request, inertia, response }: HttpContext) {
+    const campaign = await Campaign.query()
+      .withScopes((scopes) => scopes.forProject(project))
+      .where('id', params.campaignId)
+      .first()
+
+    if (!campaign) {
+      response.status(404)
+      return inertia.render('errors/not_found', {})
+    }
+
+    const page = request.input('page') ? Number(request.input('page')) : 1
+    const upcoming = await upcomingSendsService.forCampaign(campaign, page)
+
+    return inertia.render('campaigns/upcoming', {
+      project: ProjectTransformer.transform(project),
+      campaign: CampaignTransformer.transform(campaign),
+      upcoming: {
+        data: upcoming.data.map((send) => ({
+          contactId: send.contactId,
+          contactEmail: send.contactEmail,
+          nodeId: send.nodeId,
+          emailId: send.emailId,
+          subject: send.subject,
+          estimatedSendAt: send.estimatedSendAt.toISO(),
+          certainty: send.certainty,
+        })),
+        page: upcoming.page,
+        hasMore: upcoming.hasMore,
+      },
     })
   }
 

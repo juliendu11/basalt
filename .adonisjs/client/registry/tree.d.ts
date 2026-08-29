@@ -147,6 +147,7 @@ export interface ApiDefinition {
     create: typeof routes['campaigns.create']
     store: typeof routes['campaigns.store']
     show: typeof routes['campaigns.show']
+    upcoming: typeof routes['campaigns.upcoming']
     update: typeof routes['campaigns.update']
     duplicate: typeof routes['campaigns.duplicate']
     activate: typeof routes['campaigns.activate']

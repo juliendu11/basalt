@@ -17,6 +17,7 @@ declare module '@adonisjs/inertia/types' {
     'campaigns/node_statistics': ExtractProps<(typeof import('../../inertia/pages/campaigns/node_statistics.vue'))['default']>
     'campaigns/show': ExtractProps<(typeof import('../../inertia/pages/campaigns/show.vue'))['default']>
     'campaigns/statistics': ExtractProps<(typeof import('../../inertia/pages/campaigns/statistics.vue'))['default']>
+    'campaigns/upcoming': ExtractProps<(typeof import('../../inertia/pages/campaigns/upcoming.vue'))['default']>
     'campaigns/version': ExtractProps<(typeof import('../../inertia/pages/campaigns/version.vue'))['default']>
     'contacts/create': ExtractProps<(typeof import('../../inertia/pages/contacts/create.vue'))['default']>
     'contacts/edit': ExtractProps<(typeof import('../../inertia/pages/contacts/edit.vue'))['default']>

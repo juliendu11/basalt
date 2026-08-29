@@ -21,12 +21,27 @@ const props = defineProps<{
     tags?: Array<{ id: number; name: string; color: string }>
   }
   project: { id: number; organizationId: number; name: string; slug: string }
+  upcomingSends: Array<{
+    campaignId: number
+    campaignName: string
+    campaignStatus: string
+    nodeId: number
+    emailId: number | null
+    subject: string | null
+    estimatedSendAt: string | null
+    certainty: 'scheduled' | 'estimated'
+  }>
 }>()
 
 function confirmDeletion(event: MouseEvent) {
   if (!confirm(`Delete ${props.contact.email}? This cannot be undone.`)) {
     event.preventDefault()
   }
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 </script>
 
@@ -68,6 +83,60 @@ function confirmDeletion(event: MouseEvent) {
         <span class="opacity-60">Timezone</span>
         <p>{{ contact.timezone ?? '—' }}</p>
       </div>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="mb-2 text-lg font-medium">Upcoming emails</h2>
+      <p class="mb-3 text-sm opacity-70">
+        Emails campaigns are scheduled to send to this contact next.
+      </p>
+
+      <div
+        v-if="upcomingSends.length === 0"
+        class="rounded-box border border-base-200 p-6 text-center text-sm opacity-70"
+      >
+        No upcoming emails scheduled.
+      </div>
+
+      <ul v-else class="flex flex-col gap-2">
+        <li
+          v-for="send in upcomingSends"
+          :key="`${send.campaignId}-${send.nodeId}-${send.estimatedSendAt}`"
+          class="flex items-start justify-between gap-3 rounded-box border border-base-200 p-3"
+        >
+          <div class="min-w-0">
+            <p class="truncate text-sm font-medium">{{ send.subject ?? 'Untitled email' }}</p>
+            <p class="text-xs opacity-70">
+              <Link
+                class="link link-hover"
+                route="campaigns.show"
+                :params="{
+                  organizationId: project.organizationId,
+                  projectId: project.id,
+                  campaignId: send.campaignId,
+                }"
+              >
+                {{ send.campaignName }}
+              </Link>
+              <span
+                v-if="send.campaignStatus !== 'active'"
+                class="ml-1 badge badge-warning badge-xs"
+              >
+                {{ send.campaignStatus }}
+              </span>
+            </p>
+          </div>
+          <div class="shrink-0 text-right">
+            <p class="text-sm">{{ formatDate(send.estimatedSendAt) }}</p>
+            <span
+              class="badge badge-xs"
+              :class="send.certainty === 'scheduled' ? 'badge-ghost' : 'badge-outline'"
+            >
+              {{ send.certainty === 'scheduled' ? 'scheduled' : 'estimated' }}
+            </span>
+          </div>
+        </li>
+      </ul>
     </section>
 
     <section class="mb-8">
