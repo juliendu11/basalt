@@ -171,6 +171,16 @@ node ace scheduler:run         # runs periodic tasks (see start/scheduler.ts)
 
 ### 6. Tests, lint, typecheck
 
+Tests run against their own database (`.env.test` sets `DB_DATABASE=app_test`), kept empty between
+tests by a per-test transaction — some specs assert on unscoped table counts, so they must never see
+seeded or real data. Create and migrate it once:
+
+```bash
+docker compose -f docker-compose.dev.yml exec mariaDB \
+  mariadb -uroot -proot -e "CREATE DATABASE IF NOT EXISTS app_test"
+NODE_ENV=test node ace migration:run
+```
+
 ```bash
 node ace test              # all suites
 node ace test unit         # one suite: unit | functional | browser
