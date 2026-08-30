@@ -15,6 +15,8 @@ worker processes.
 <img src="./.github/images/2.png" height="300px"/>
 <img src="./.github/images/3.png" height="300px"/>
 <img src="./.github/images/4.png" height="300px"/>
+<img src="./.github/images/5.png" height="300px"/>
+<img src="./.github/images/6.png" height="300px"/>
 
 ---
 
@@ -26,12 +28,18 @@ Basalt deliberately keeps the parts of Mautic that teams actually rely on:
 
 - **Contact management** — CRUD, engagement status state machine (`subscribed` / `unsubscribed` /
   `bounced` / `complained` / `blocked`), soft delete, per-contact history.
+- **Per-contact email timeline** — a single chronological view on the contact page merging the emails
+  already sent to that contact (with delivery status and first open / first click) and the sends
+  campaigns have scheduled for them next, split by a "now" marker.
 - **Tags** — created on the fly, attached/detached in bulk.
 - **Custom fields** — per-project field definitions, stored as JSON on the contact.
 - **Dynamic segments** — a nested AND/OR filter builder over standard and custom fields, with a live match-count
   preview, persisted membership, and both targeted (on contact change) and full (scheduled) recompute.
 - **Visual campaigns** — a drag-and-drop node/edge builder (source → actions → conditions), with draft / published /
   archived versioning.
+- **Per-campaign email activity** — a page listing what the campaign has already sent (one row per
+  contact, with delivery status and open/click engagement) next to what its active executions are
+  projected to send next and to whom, each list independently paginated.
 - **Email templates** — reusable starting points, previewable, duplicable.
 - **Statistics & dashboards** — sends, deliveries, opens, clicks, bounces, unsubscribes, plus open/click/bounce rates,
   per project and per campaign, over `today` / 7d / 30d / custom ranges.

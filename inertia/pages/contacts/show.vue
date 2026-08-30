@@ -1,8 +1,33 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import { Form, Link } from '@adonisjs/inertia/vue'
 import ContactStatusBadge from '~/components/contact_status_badge.vue'
 import TagPicker from '~/components/tag_picker.vue'
+
+type SentEmail = {
+  deliveryId: number
+  campaignId: number | null
+  campaignName: string | null
+  emailId: number | null
+  subject: string | null
+  status: 'pending' | 'queued' | 'processing' | 'sent' | 'delivered' | 'failed' | 'bounced'
+  sentAt: string | null
+  deliveredAt: string | null
+  openedAt: string | null
+  clickedAt: string | null
+}
+
+type UpcomingSend = {
+  campaignId: number
+  campaignName: string
+  campaignStatus: string
+  nodeId: number
+  emailId: number | null
+  subject: string | null
+  estimatedSendAt: string | null
+  certainty: 'scheduled' | 'estimated'
+}
 
 const props = defineProps<{
   contact: {
@@ -21,17 +46,41 @@ const props = defineProps<{
     tags?: Array<{ id: number; name: string; color: string }>
   }
   project: { id: number; organizationId: number; name: string; slug: string }
-  upcomingSends: Array<{
-    campaignId: number
-    campaignName: string
-    campaignStatus: string
-    nodeId: number
-    emailId: number | null
-    subject: string | null
-    estimatedSendAt: string | null
-    certainty: 'scheduled' | 'estimated'
-  }>
+  sentEmails: SentEmail[]
+  upcomingSends: UpcomingSend[]
 }>()
+
+type TimelineRow =
+  | { key: string; kind: 'sent'; at: string | null; sent: SentEmail }
+  | { key: string; kind: 'now' }
+  | { key: string; kind: 'upcoming'; at: string | null; send: UpcomingSend }
+
+const hasEmails = computed(() => props.sentEmails.length > 0 || props.upcomingSends.length > 0)
+
+// Past sends (oldest → newest), a "Now" pivot, then projected upcoming sends
+// (earliest → latest) — one straight top-to-bottom chronological read.
+const timeline = computed<TimelineRow[]>(() => {
+  const rows: TimelineRow[] = []
+  for (const sent of props.sentEmails) {
+    rows.push({ key: `sent-${sent.deliveryId}`, kind: 'sent', at: sent.sentAt, sent })
+  }
+  rows.push({ key: 'now', kind: 'now' })
+  for (const send of props.upcomingSends) {
+    rows.push({
+      key: `upcoming-${send.campaignId}-${send.nodeId}-${send.estimatedSendAt}`,
+      kind: 'upcoming',
+      at: send.estimatedSendAt,
+      send,
+    })
+  }
+  return rows
+})
+
+function statusBadgeClass(status: SentEmail['status']): string {
+  if (status === 'delivered') return 'badge-success'
+  if (status === 'bounced' || status === 'failed') return 'badge-error'
+  return 'badge-ghost'
+}
 
 function confirmDeletion(event: MouseEvent) {
   if (!confirm(`Delete ${props.contact.email}? This cannot be undone.`)) {
@@ -83,60 +132,6 @@ function formatDate(iso: string | null): string {
         <span class="opacity-60">Timezone</span>
         <p>{{ contact.timezone ?? '—' }}</p>
       </div>
-    </section>
-
-    <section class="mb-8">
-      <h2 class="mb-2 text-lg font-medium">Upcoming emails</h2>
-      <p class="mb-3 text-sm opacity-70">
-        Emails campaigns are scheduled to send to this contact next.
-      </p>
-
-      <div
-        v-if="upcomingSends.length === 0"
-        class="rounded-box border border-base-200 p-6 text-center text-sm opacity-70"
-      >
-        No upcoming emails scheduled.
-      </div>
-
-      <ul v-else class="flex flex-col gap-2">
-        <li
-          v-for="send in upcomingSends"
-          :key="`${send.campaignId}-${send.nodeId}-${send.estimatedSendAt}`"
-          class="flex items-start justify-between gap-3 rounded-box border border-base-200 p-3"
-        >
-          <div class="min-w-0">
-            <p class="truncate text-sm font-medium">{{ send.subject ?? 'Untitled email' }}</p>
-            <p class="text-xs opacity-70">
-              <Link
-                class="link link-hover"
-                route="campaigns.show"
-                :params="{
-                  organizationId: project.organizationId,
-                  projectId: project.id,
-                  campaignId: send.campaignId,
-                }"
-              >
-                {{ send.campaignName }}
-              </Link>
-              <span
-                v-if="send.campaignStatus !== 'active'"
-                class="ml-1 badge badge-warning badge-xs"
-              >
-                {{ send.campaignStatus }}
-              </span>
-            </p>
-          </div>
-          <div class="shrink-0 text-right">
-            <p class="text-sm">{{ formatDate(send.estimatedSendAt) }}</p>
-            <span
-              class="badge badge-xs"
-              :class="send.certainty === 'scheduled' ? 'badge-ghost' : 'badge-outline'"
-            >
-              {{ send.certainty === 'scheduled' ? 'scheduled' : 'estimated' }}
-            </span>
-          </div>
-        </li>
-      </ul>
     </section>
 
     <section class="mb-8">
@@ -208,5 +203,112 @@ function formatDate(iso: string | null): string {
         <button type="submit" class="btn btn-error btn-sm" @click="confirmDeletion">Delete</button>
       </Form>
     </div>
+
+    <div class="divider"></div>
+
+    <section>
+      <h2 class="mb-2 text-lg font-medium">Email timeline</h2>
+      <p class="mb-3 text-sm opacity-70">
+        Emails already sent to this contact, and what campaigns are scheduled to send next.
+      </p>
+
+      <div
+        v-if="!hasEmails"
+        class="rounded-box border border-base-200 p-6 text-center text-sm opacity-70"
+      >
+        No emails sent to this contact yet, and none scheduled.
+      </div>
+
+      <ul v-else class="timeline timeline-vertical timeline-compact">
+        <li v-for="(row, index) in timeline" :key="row.key">
+          <hr v-if="index > 0" />
+
+          <template v-if="row.kind === 'now'">
+            <div class="timeline-middle">
+              <span class="badge badge-primary badge-sm">Now</span>
+            </div>
+          </template>
+
+          <template v-else-if="row.kind === 'sent'">
+            <div class="timeline-start text-xs opacity-60">{{ formatDate(row.at) }}</div>
+            <div class="timeline-middle text-success">●</div>
+            <div class="timeline-end rounded-box border border-base-200 p-3">
+              <p class="text-sm font-medium">{{ row.sent.subject ?? 'Untitled email' }}</p>
+              <p class="text-xs opacity-70">
+                <Link
+                  v-if="row.sent.campaignId"
+                  class="link link-hover"
+                  route="campaigns.show"
+                  :params="{
+                    organizationId: project.organizationId,
+                    projectId: project.id,
+                    campaignId: row.sent.campaignId,
+                  }"
+                >
+                  {{ row.sent.campaignName ?? 'Campaign' }}
+                </Link>
+                <span v-else>Direct send</span>
+              </p>
+              <div class="mt-1 flex flex-wrap gap-1">
+                <span class="badge badge-xs" :class="statusBadgeClass(row.sent.status)">
+                  {{ row.sent.status }}
+                </span>
+                <span
+                  v-if="row.sent.openedAt"
+                  class="badge badge-outline badge-xs"
+                  :title="formatDate(row.sent.openedAt)"
+                >
+                  opened
+                </span>
+                <span
+                  v-if="row.sent.clickedAt"
+                  class="badge badge-outline badge-xs"
+                  :title="formatDate(row.sent.clickedAt)"
+                >
+                  clicked
+                </span>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="timeline-start text-xs opacity-60">{{ formatDate(row.at) }}</div>
+            <div class="timeline-middle opacity-40">○</div>
+            <div class="timeline-end rounded-box border border-dashed border-base-300 p-3">
+              <p class="text-sm font-medium">{{ row.send.subject ?? 'Untitled email' }}</p>
+              <p class="text-xs opacity-70">
+                <Link
+                  class="link link-hover"
+                  route="campaigns.show"
+                  :params="{
+                    organizationId: project.organizationId,
+                    projectId: project.id,
+                    campaignId: row.send.campaignId,
+                  }"
+                >
+                  {{ row.send.campaignName }}
+                </Link>
+                <span
+                  v-if="row.send.campaignStatus !== 'active'"
+                  class="ml-1 badge badge-warning badge-xs"
+                >
+                  {{ row.send.campaignStatus }}
+                </span>
+              </p>
+              <div class="mt-1">
+                <span
+                  class="badge badge-xs"
+                  :class="row.send.certainty === 'scheduled' ? 'badge-ghost' : 'badge-outline'"
+                >
+                  {{ row.send.certainty === 'scheduled' ? 'scheduled' : 'estimated' }}
+                </span>
+              </div>
+            </div>
+          </template>
+
+          <hr v-if="index < timeline.length - 1" />
+        </li>
+      </ul>
+    </section>
   </div>
 </template>

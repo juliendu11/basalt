@@ -5,6 +5,7 @@ import CampaignPolicy from '#policies/campaign_policy'
 import CampaignService from '#services/campaigns/campaign_service'
 import CampaignBuilderService from '#services/campaigns/campaign_builder_service'
 import UpcomingSendsService from '#services/automation/upcoming_sends_service'
+import SentEmailsService from '#services/emails/sent_emails_service'
 import { createCampaignValidator, updateCampaignValidator } from '#validators/campaign'
 import CampaignTransformer from '#transformers/campaign_transformer'
 import CampaignVersionTransformer from '#transformers/campaign_version_transformer'
@@ -14,6 +15,7 @@ import BusinessRuleViolation from '#exceptions/business_rule_violation'
 const campaignService = new CampaignService()
 const campaignBuilderService = new CampaignBuilderService()
 const upcomingSendsService = new UpcomingSendsService()
+const sentEmailsService = new SentEmailsService()
 
 export default class CampaignsController {
   async index({ project, inertia }: HttpContext) {
@@ -76,11 +78,12 @@ export default class CampaignsController {
   }
 
   /**
-   * The emails this campaign's live executions are going to send next, and
-   * to which contact — projected from each `pending`/`waiting`
-   * `campaign_execution` by walking the published graph forward
-   * (`UpcomingSendsService`). Read-only for every project role, same gate
-   * as `show`/`StatisticsController` (project membership only).
+   * The campaign's email activity: what it has already sent (`SentEmailsService`,
+   * one delivery row per contact) alongside what its live `pending`/`waiting`
+   * `campaign_execution`s are projected to send next (`UpcomingSendsService`,
+   * by walking the published graph forward). The two lists paginate
+   * independently (`sentPage` / `page`). Read-only for every project role,
+   * same gate as `show`/`StatisticsController` (project membership only).
    */
   async upcoming({ project, params, request, inertia, response }: HttpContext) {
     const campaign = await Campaign.query()
@@ -94,11 +97,32 @@ export default class CampaignsController {
     }
 
     const page = request.input('page') ? Number(request.input('page')) : 1
-    const upcoming = await upcomingSendsService.forCampaign(campaign, page)
+    const sentPage = request.input('sentPage') ? Number(request.input('sentPage')) : 1
+
+    const [upcoming, sent] = await Promise.all([
+      upcomingSendsService.forCampaign(campaign, page),
+      sentEmailsService.forCampaign(campaign, sentPage),
+    ])
 
     return inertia.render('campaigns/upcoming', {
       project: ProjectTransformer.transform(project),
       campaign: CampaignTransformer.transform(campaign),
+      sent: {
+        data: sent.data.map((email) => ({
+          deliveryId: email.deliveryId,
+          contactId: email.contactId,
+          contactEmail: email.contactEmail,
+          emailId: email.emailId,
+          subject: email.subject,
+          status: email.status,
+          sentAt: email.sentAt?.toISO() ?? null,
+          deliveredAt: email.deliveredAt?.toISO() ?? null,
+          openedAt: email.openedAt?.toISO() ?? null,
+          clickedAt: email.clickedAt?.toISO() ?? null,
+        })),
+        page: sent.page,
+        hasMore: sent.hasMore,
+      },
       upcoming: {
         data: upcoming.data.map((send) => ({
           contactId: send.contactId,
