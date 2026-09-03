@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon'
+import { Worker } from 'bullmq'
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import { UserFactory } from '#database/factories/user_factory'
@@ -15,6 +16,10 @@ import CampaignEnrollment from '#models/campaign_enrollment'
 import CampaignExecution from '#models/campaign_execution'
 import CampaignEngineService from '#services/automation/campaign_engine_service'
 import ExecutionSchedulerService from '#services/automation/execution_scheduler_service'
+import { queueConnection } from '#config/queue'
+import queueRegistry from '#services/jobs/queue_registry'
+import jobHandlerRegistry from '#services/jobs/job_handler_registry'
+import scheduledTaskRegistry from '#services/jobs/scheduled_task_registry'
 import type { BuilderEdge, BuilderNode } from '#types/campaign_graph'
 
 const organizationService = new OrganizationService()
@@ -120,6 +125,91 @@ async function publishTwoEmailWaitGraph(
   return { campaign, version: published, emailA, emailB }
 }
 
+/**
+ * Publishes a { source -> send_email -> wait -> send_email -> wait -> send_email }
+ * graph — two consecutive wait/resume cycles, the shape that exposed the
+ * static-jobId dedupe bug (docs/incidents/2026-09-03-wait-node-resume-jobid-dedupe.md).
+ */
+async function publishThreeEmailTwoWaitGraph(
+  owner: Awaited<ReturnType<typeof UserFactory.create>>,
+  project: Awaited<ReturnType<typeof projectService.create>>,
+  segmentId: number
+) {
+  const emails = []
+  for (const label of ['A', 'B', 'C']) {
+    emails.push(
+      await emailService.create(project, owner, {
+        name: `Email ${label}`,
+        subject: `Email ${label}`,
+        senderName: 'Acme',
+        senderEmail: 'hello@acme.test',
+        htmlContent: `<p>${label}</p>`,
+      })
+    )
+  }
+
+  const campaign = await campaignService.create(project, owner, { name: 'Drip' })
+  const draft = await CampaignVersion.findOrFail(campaign.draftVersionId)
+
+  const nodes: BuilderNode[] = [
+    {
+      clientKey: 'src',
+      type: 'source',
+      subtype: 'segment',
+      config: { segmentId },
+      position: { x: 0, y: 0 },
+    },
+    {
+      clientKey: 'send-a',
+      type: 'action',
+      subtype: 'send_email',
+      config: { emailId: emails[0].id },
+      position: { x: 100, y: 0 },
+    },
+    {
+      clientKey: 'wait-1',
+      type: 'action',
+      subtype: 'wait',
+      config: { durationValue: 1, durationUnit: 'days' },
+      position: { x: 200, y: 0 },
+    },
+    {
+      clientKey: 'send-b',
+      type: 'action',
+      subtype: 'send_email',
+      config: { emailId: emails[1].id },
+      position: { x: 300, y: 0 },
+    },
+    {
+      clientKey: 'wait-2',
+      type: 'action',
+      subtype: 'wait',
+      config: { durationValue: 1, durationUnit: 'days' },
+      position: { x: 400, y: 0 },
+    },
+    {
+      clientKey: 'send-c',
+      type: 'action',
+      subtype: 'send_email',
+      config: { emailId: emails[2].id },
+      position: { x: 500, y: 0 },
+    },
+  ]
+  const edges: BuilderEdge[] = [
+    { sourceClientKey: 'src', targetClientKey: 'send-a', sourceHandle: null },
+    { sourceClientKey: 'send-a', targetClientKey: 'wait-1', sourceHandle: null },
+    { sourceClientKey: 'wait-1', targetClientKey: 'send-b', sourceHandle: null },
+    { sourceClientKey: 'send-b', targetClientKey: 'wait-2', sourceHandle: null },
+    { sourceClientKey: 'wait-2', targetClientKey: 'send-c', sourceHandle: null },
+  ]
+
+  await builderService.saveDraft(draft, { nodes, edges })
+  const published = await builderService.publish(draft, owner)
+  await campaign.refresh()
+
+  return { campaign, version: published }
+}
+
 async function enroll(
   project: Awaited<ReturnType<typeof projectService.create>>,
   campaignId: number,
@@ -141,6 +231,16 @@ async function enroll(
     scheduledAt: DateTime.now(),
   })
   return { enrollment, execution }
+}
+
+/** Polls `check` every 50ms until it returns true or `timeoutMs` elapses (then throws). */
+async function waitUntil(check: () => Promise<boolean>, timeoutMs = 8000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (await check()) return
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  throw new Error(`waitUntil: condition not met within ${timeoutMs}ms`)
 }
 
 test.group('Campaign Engine — init.md scenarios', () => {
@@ -318,4 +418,101 @@ test.group('Campaign Engine — init.md scenarios', () => {
     assert.equal(execution.status, 'failed')
     assert.include(execution.lastError ?? '', 'infinite loop')
   }).timeout(20_000)
+
+  /**
+   * Regression for docs/incidents/2026-09-03-wait-node-resume-jobid-dedupe.md.
+   *
+   * The scheduler used to dispatch the resume job with a static
+   * `jobId: campaign-engine.advance-${execution.id}`. BullMQ dedupes
+   * `queue.add` against retained completed jobs too, so once the FIRST
+   * wait cycle's resume job had completed (and was still in the retained
+   * `completed` set), every later `schedule_due_executions` pass for the
+   * same execution added nothing — the SECOND wait never resumed.
+   *
+   * This drives two real wait/resume cycles through the actual
+   * `schedule_due_executions` task + a live BullMQ worker. With the bug,
+   * the execution never gets past `wait-2` and the third email is never
+   * sent, so the final assertions time out / fail.
+   */
+  test('Regression: two consecutive wait cycles both resume via the scheduler (no static-jobId dedupe against retained completed jobs)', async ({
+    assert,
+    cleanup,
+  }) => {
+    const { owner, project, contact, segment } = await createFixtures()
+    const { campaign, version } = await publishThreeEmailTwoWaitGraph(owner, project, segment.id)
+    const { execution } = await enroll(project, campaign.id, version.id, contact.id)
+
+    // The campaign-engine queue is real, shared, global Redis state — wipe
+    // it (waiting AND retained completed/failed) so a leftover job from
+    // another test can't stand in for, or dedupe against, ours.
+    const queue = queueRegistry.getQueue('campaign-engine')
+    await queue.obliterate({ force: true })
+
+    // A real worker, exactly as `node ace queue:work` runs it.
+    const worker = new Worker(
+      'campaign-engine',
+      async (job) => {
+        const handler = jobHandlerRegistry.resolve('campaign-engine', job.name)
+        await handler(job.data, job)
+      },
+      {
+        connection: queueConnection,
+        concurrency: 1,
+        settings: { backoffStrategy: queueRegistry.backoffStrategyFor('campaign-engine') },
+      }
+    )
+    cleanup(async () => {
+      await worker.close()
+      await queue.obliterate({ force: true })
+    })
+
+    const scheduleDue = scheduledTaskRegistry
+      .list()
+      .find((task) => task.name === 'campaign-engine.schedule_due_executions')
+    assert.exists(
+      scheduleDue,
+      'schedule_due_executions task must be registered (start/scheduler.ts)'
+    )
+
+    // Setup only (not the code under test): walk synchronously to the
+    // first wait node.
+    await engine.advance({ executionId: execution.id }) // source -> send-a
+    await engine.advance({ executionId: execution.id }) // send-a -> wait-1
+    await engine.advance({ executionId: execution.id }) // wait-1 -> waiting
+    await execution.refresh()
+    assert.equal(execution.status, 'waiting')
+
+    const deliveryCount = async () => {
+      const rows = await db.from('email_deliveries').where('contact_id', contact.id).count('* as c')
+      return Number(rows[0].c)
+    }
+
+    // --- Cycle 1: due -> scheduler enqueues -> worker resumes past wait-1,
+    // sends email B, parks on wait-2. This resume job then sits in the
+    // retained `completed` set.
+    execution.scheduledAt = DateTime.now().minus({ minutes: 1 })
+    await execution.save()
+    await scheduleDue!.run()
+    await waitUntil(async () => {
+      await execution.refresh()
+      return execution.status === 'waiting' && (await deliveryCount()) === 2
+    })
+
+    // --- Cycle 2: the bug lived here. Same execution, second scheduler
+    // pass; the static jobId would collide with cycle 1's retained
+    // completed job and enqueue nothing.
+    execution.scheduledAt = DateTime.now().minus({ minutes: 1 })
+    await execution.save()
+    await scheduleDue!.run()
+    await waitUntil(async () => {
+      await execution.refresh()
+      return execution.status === 'completed'
+    })
+
+    const deliveries = await db.from('email_deliveries').where('contact_id', contact.id)
+    // Exactly 3 — proves cycle 2 resumed (not stuck at 2) AND that no node
+    // double-sent (not 4+), i.e. dropping the jobId introduced no dup send.
+    assert.lengthOf(deliveries, 3)
+    assert.isTrue(deliveries.every((d) => d.status === 'sent'))
+  }).timeout(30_000)
 })

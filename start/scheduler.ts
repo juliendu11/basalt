@@ -55,22 +55,33 @@ scheduledTaskRegistry.register(
     const executions = await executionSchedulerService.findDueExecutions()
 
     for (const execution of executions) {
-      await queueDispatcher.dispatch(
-        'campaign-engine',
-        'campaign-engine.advance',
-        { executionId: execution.id },
-        // Deterministic id: if this execution already has an `advance` job
-        // pending (e.g. re-enqueued directly by the engine itself after a
-        // 'continue'/'branch' transition), BullMQ's native dedupe-on-add
-        // (docs/plans/14-jobs-and-queues.md) silently skips adding a
-        // second one rather than piling up redundant work. Must not
-        // contain `:` — BullMQ reserves that character in custom job ids
-        // for its own repeatable-job id format (`job.js#validateOptions`:
-        // a colon-bearing id must split into exactly 3 parts or `queue.add`
-        // throws "Custom Id cannot contain :", which silently broke every
-        // wait-node resume since this scheduler always hit that path).
-        { jobId: `campaign-engine.advance-${execution.id}` }
-      )
+      // No `jobId` on purpose. A deterministic, execution-scoped id
+      // (`campaign-engine.advance-${execution.id}`) was tried here to
+      // dedupe redundant enqueues, but BullMQ dedupes `queue.add` against
+      // jobs in EVERY state — including the completed/failed jobs we
+      // deliberately retain (`removeOnComplete`/`removeOnFail` in
+      // queue_dispatcher.ts), which BullMQ only trims lazily (when another
+      // job on the same queue finishes), never on a timer. So once one
+      // resume job for an execution had completed and was still retained,
+      // every subsequent 60s pass called `queue.add` with the same id,
+      // got the retained completed job back, and enqueued NOTHING — the
+      // execution stayed `waiting` with a past `scheduled_at` forever, and
+      // no job meant no "failed job" to notice. With daily-cadence wait
+      // nodes (~24h) landing right on the retention age, this bit on the
+      // second wait cycle of essentially every enrollment.
+      // See docs/incidents/2026-09-03-wait-node-resume-jobid-dedupe.md.
+      //
+      // Dropping the id is safe: duplicate `advance` jobs for the same
+      // execution are already harmless — `ExecutionLockService` lets at
+      // most one worker advance an execution at a time (the others no-op),
+      // the current node is re-read under that lock, and `send_email`
+      // sends are idempotent on `email_deliveries.idempotency_key`
+      // (decisions/ADR-005-email-idempotency.md). The worst case is 1-2
+      // extra no-op jobs per execution per 60s window until the worker
+      // drains the first one.
+      await queueDispatcher.dispatch('campaign-engine', 'campaign-engine.advance', {
+        executionId: execution.id,
+      })
     }
   }
 )
