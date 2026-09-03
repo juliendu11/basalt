@@ -7,6 +7,7 @@ import ContactService from '#services/contacts/contact_service'
 import ContactQueryService from '#services/contacts/contact_query_service'
 import UnsubscribeService from '#services/unsubscribe/unsubscribe_service'
 import UpcomingSendsService from '#services/automation/upcoming_sends_service'
+import SentEmailsService from '#services/emails/sent_emails_service'
 import { createContactValidator, updateContactValidator } from '#validators/contact'
 import ContactTransformer from '#transformers/contact_transformer'
 import TagTransformer from '#transformers/tag_transformer'
@@ -18,6 +19,7 @@ const contactService = new ContactService()
 const contactQueryService = new ContactQueryService()
 const unsubscribeService = new UnsubscribeService()
 const upcomingSendsService = new UpcomingSendsService()
+const sentEmailsService = new SentEmailsService()
 
 export default class ContactsController {
   async index({ project, request, inertia, serialize }: HttpContext) {
@@ -84,11 +86,26 @@ export default class ContactsController {
       return inertia.render('errors/not_found', {})
     }
 
-    const upcomingSends = await upcomingSendsService.forContact(contact)
+    const [upcomingSends, sentEmails] = await Promise.all([
+      upcomingSendsService.forContact(contact),
+      sentEmailsService.forContact(contact),
+    ])
 
     return inertia.render('contacts/show', {
       contact: ContactTransformer.transform(contact),
       project: ProjectTransformer.transform(project),
+      sentEmails: sentEmails.map((email) => ({
+        deliveryId: email.deliveryId,
+        campaignId: email.campaignId,
+        campaignName: email.campaignName,
+        emailId: email.emailId,
+        subject: email.subject,
+        status: email.status,
+        sentAt: email.sentAt?.toISO() ?? null,
+        deliveredAt: email.deliveredAt?.toISO() ?? null,
+        openedAt: email.openedAt?.toISO() ?? null,
+        clickedAt: email.clickedAt?.toISO() ?? null,
+      })),
       upcomingSends: upcomingSends.map((send) => ({
         campaignId: send.campaignId,
         campaignName: send.campaignName,

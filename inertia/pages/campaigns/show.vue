@@ -146,7 +146,7 @@ const editingName = ref(false)
           Statistics
         </Link>
         <Link class="btn btn-sm btn-outline" route="campaigns.upcoming" :params="routeParams">
-          Upcoming sends
+          Email activity
         </Link>
       </div>
     </div>
