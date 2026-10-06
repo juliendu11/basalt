@@ -240,11 +240,15 @@ test.group('Tracking routes (functional)', () => {
     const { delivery } = await createDeliveryFixture()
     const token = deliveryTokenService.encode(delivery.id)
     const target = 'https://example.com/landing'
+    const signature = deliveryTokenService.signUrl(token, target)
 
     const { worker, result } = waitForTrackingJobsProcessed(1)
     cleanup(() => worker.close())
 
-    const response = await client.get(`/track/click/${token}`).qs({ u: target }).redirects(0)
+    const response = await client
+      .get(`/track/click/${token}`)
+      .qs({ u: target, s: signature })
+      .redirects(0)
     response.assertStatus(302)
     assert.equal(response.response.headers.location, target)
 
@@ -271,6 +275,33 @@ test.group('Tracking routes (functional)', () => {
 
   test('an invalid token with no u returns 404', async ({ client }) => {
     const response = await client.get('/track/click/not-a-real-token').redirects(0)
+    response.assertStatus(404)
+  })
+
+  test('a valid token with a tampered u (signature no longer matches) does NOT redirect', async ({
+    client,
+  }) => {
+    const { delivery } = await createDeliveryFixture()
+    const token = deliveryTokenService.encode(delivery.id)
+    const original = 'https://example.com/landing'
+    const signature = deliveryTokenService.signUrl(token, original)
+
+    // Attacker keeps the legitimate signature but swaps the target URL.
+    const response = await client
+      .get(`/track/click/${token}`)
+      .qs({ u: 'https://evil.example/phish', s: signature })
+      .redirects(0)
+    response.assertStatus(404)
+  })
+
+  test('a valid token and valid u but NO signature does NOT redirect', async ({ client }) => {
+    const { delivery } = await createDeliveryFixture()
+    const token = deliveryTokenService.encode(delivery.id)
+
+    const response = await client
+      .get(`/track/click/${token}`)
+      .qs({ u: 'https://example.com/landing' })
+      .redirects(0)
     response.assertStatus(404)
   })
 

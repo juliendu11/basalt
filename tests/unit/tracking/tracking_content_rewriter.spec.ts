@@ -1,9 +1,17 @@
 import { test } from '@japa/runner'
 import TrackingContentRewriter from '#services/tracking/tracking_content_rewriter'
+import DeliveryTokenService from '#services/tracking/delivery_token_service'
 
 const rewriter = new TrackingContentRewriter()
+const deliveryTokenService = new DeliveryTokenService()
 const BASE_URL = 'https://app.example.test'
 const TOKEN = 'abc123.def456'
+
+/** The tracked click URL the rewriter is expected to produce for an href. */
+function trackedUrl(href: string): string {
+  const signature = deliveryTokenService.signUrl(TOKEN, href)
+  return `${BASE_URL}/track/click/${TOKEN}?u=${encodeURIComponent(href)}&s=${signature}`
+}
 
 test.group('TrackingContentRewriter', () => {
   test('inserts the open-tracking pixel just before </body>', ({ assert }) => {
@@ -26,14 +34,8 @@ test.group('TrackingContentRewriter', () => {
     const html = '<a href="https://example.com/a">A</a><a href="http://example.com/b">B</a></body>'
     const result = rewriter.rewrite(html, TOKEN, BASE_URL)
 
-    assert.include(
-      result,
-      `href="${BASE_URL}/track/click/${TOKEN}?u=${encodeURIComponent('https://example.com/a')}"`
-    )
-    assert.include(
-      result,
-      `href="${BASE_URL}/track/click/${TOKEN}?u=${encodeURIComponent('http://example.com/b')}"`
-    )
+    assert.include(result, `href="${trackedUrl('https://example.com/a')}"`)
+    assert.include(result, `href="${trackedUrl('http://example.com/b')}"`)
   })
 
   test('leaves non-http(s) hrefs untouched', ({ assert }) => {

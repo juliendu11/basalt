@@ -43,33 +43,40 @@ export default class TrackingController {
   async click({ params, request, response }: HttpContext) {
     const deliveryId = deliveryTokenService.decode(params.deliveryToken)
     const rawUrl = request.input('u')
+    const signature = request.input('s')
     const targetUrl = this.#validRedirectTarget(rawUrl)
 
-    if (deliveryId !== null) {
-      await queueDispatcher.dispatch('tracking', 'tracking.process_event', {
-        deliveryId,
-        type: 'clicked',
-        metadata: {
-          url: targetUrl,
-          userAgent: request.header('user-agent') ?? null,
-        },
-      })
+    // A redirect happens only for a genuine, unmodified tracked link: a valid
+    // delivery token, a valid http(s) target, AND a signature binding that
+    // exact target to that token (docs/security-audit-2026-10-06.md § 3).
+    // Requiring the token alone stopped anonymous open-redirect abuse; the
+    // `s` signature closes the residual case where a recipient holding a real
+    // token swaps `?u=` for an arbitrary URL — now that fails the check.
+    // Links from emails sent before this change carry no `s` and no longer
+    // redirect (accepted trade-off).
+    const authorized =
+      deliveryId !== null &&
+      targetUrl !== null &&
+      typeof signature === 'string' &&
+      deliveryTokenService.verifyUrl(params.deliveryToken, targetUrl, signature)
+
+    if (!authorized) {
+      return response.status(404).send('')
     }
 
-    // Only redirect when the signed delivery token actually checks out
-    // (docs/security-audit-2026-10-06.md § 3). Redirecting on any
-    // `?u=` regardless of the token turned this trusted domain into an open
-    // redirect usable for phishing: `GET /track/click/anything?u=https://evil`
-    // would 302 to `evil` with no valid token. Since the token is HMAC-signed
-    // and unforgeable, requiring it means only genuinely-sent links redirect.
+    await queueDispatcher.dispatch('tracking', 'tracking.process_event', {
+      deliveryId,
+      type: 'clicked',
+      metadata: {
+        url: targetUrl,
+        userAgent: request.header('user-agent') ?? null,
+      },
+    })
+
     // `withQs(false)`: this app defaults `redirect.forwardQueryString` to
-    // `true` (config/app.ts), which would otherwise carry our own `?u=...`
-    // tracking param over onto the recipient's landing page URL.
-    if (targetUrl && deliveryId !== null) {
-      return response.redirect().withQs(false).toPath(targetUrl)
-    }
-
-    return response.status(404).send('')
+    // `true` (config/app.ts), which would otherwise carry our own
+    // `?u=...&s=...` tracking params over onto the recipient's landing page.
+    return response.redirect().withQs(false).toPath(targetUrl)
   }
 
   /**

@@ -32,4 +32,25 @@ test.group('DeliveryTokenService', () => {
     assert.isNull(service.decode(''))
     assert.isNull(service.decode('a.b.c'))
   })
+
+  test('verifyUrl accepts a signature produced by signUrl', ({ assert }) => {
+    const token = service.encode(42)
+    const url = 'https://example.com/landing?x=1'
+    const signature = service.signUrl(token, url)
+
+    assert.isTrue(service.verifyUrl(token, url, signature))
+  })
+
+  test('verifyUrl rejects a tampered url, a tampered signature, and a different token', ({
+    assert,
+  }) => {
+    const token = service.encode(42)
+    const url = 'https://example.com/landing'
+    const signature = service.signUrl(token, url)
+
+    assert.isFalse(service.verifyUrl(token, 'https://evil.example/phish', signature))
+    assert.isFalse(service.verifyUrl(token, url, `${signature}x`))
+    assert.isFalse(service.verifyUrl(service.encode(43), url, signature))
+    assert.isFalse(service.verifyUrl(token, url, ''))
+  })
 })
