@@ -56,13 +56,18 @@ export default class TrackingController {
       })
     }
 
-    // Never break the recipient's navigation for a tracking problem
-    // (invalid/expired token) as long as a valid target URL is present —
-    // docs/plans/16-email-tracking.md § Edge cases. `withQs(false)`:
-    // this app defaults `redirect.forwardQueryString` to `true`
-    // (config/app.ts), which would otherwise carry our own `?u=...`
+    // Only redirect when the signed delivery token actually checks out
+    // (docs/security-audit-2026-10-06.md § 3). Redirecting on any
+    // `?u=` regardless of the token turned this trusted domain into an open
+    // redirect usable for phishing: `GET /track/click/anything?u=https://evil`
+    // would 302 to `evil` with no valid token. Since the token is HMAC-signed
+    // and unforgeable, requiring it means only genuinely-sent links redirect.
+    // `withQs(false)`: this app defaults `redirect.forwardQueryString` to
+    // `true` (config/app.ts), which would otherwise carry our own `?u=...`
     // tracking param over onto the recipient's landing page URL.
-    if (targetUrl) return response.redirect().withQs(false).toPath(targetUrl)
+    if (targetUrl && deliveryId !== null) {
+      return response.redirect().withQs(false).toPath(targetUrl)
+    }
 
     return response.status(404).send('')
   }

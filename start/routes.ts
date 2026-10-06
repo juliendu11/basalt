@@ -8,7 +8,7 @@
 */
 
 import { middleware } from '#start/kernel'
-import { apiThrottle } from '#start/limiter'
+import { apiThrottle, authThrottle, webhookThrottle } from '#start/limiter'
 import { controllers } from '#generated/controllers'
 import router from '@adonisjs/core/services/router'
 
@@ -32,6 +32,7 @@ router
 router
   .post('/webhooks/smtp/:connectorId', [controllers.tracking.SmtpWebhooks, 'handle'])
   .as('smtp_webhooks.handle')
+  .use(webhookThrottle)
 
 /**
  * Also deliberately PUBLIC (docs/plans/17-unsubscribe.md § Routes) — a
@@ -45,10 +46,10 @@ router.get('/unsubscribe/:token', [controllers.Unsubscribe, 'show']).as('unsubsc
 router
   .group(() => {
     router.get('signup', [controllers.NewAccount, 'create'])
-    router.post('signup', [controllers.NewAccount, 'store'])
+    router.post('signup', [controllers.NewAccount, 'store']).use(authThrottle)
 
     router.get('login', [controllers.Session, 'create']).as('session.create')
-    router.post('login', [controllers.Session, 'store'])
+    router.post('login', [controllers.Session, 'store']).use(authThrottle)
   })
   .use(middleware.guest())
 
