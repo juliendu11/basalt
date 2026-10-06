@@ -5,7 +5,7 @@
 - **Branche auditée** : `develop` @ `07bccd4`
 - **Méthode** : lecture du code source (auth, multi-tenant, endpoints publics, SMTP, tracking, validation) ; en prod, uniquement inspection d'en-têtes HTTP et un test d'open-redirect avec cible bénigne (`example.com`). **Aucune** tentative de brute-force, d'exfiltration ou d'action destructive n'a été menée.
 
-> ⚠️ Rien de « critique » (RCE, injection SQL, contournement d'auth, fuite inter-tenant) n'a été trouvé. La base est **globalement bien sécurisée**. Les points ci-dessous sont réels mais de sévérité mesurée.
+> La base est **globalement bien sécurisée** : l'isolation multi-tenant des ressources imbriquées (contacts, emails, campagnes, SMTP, clés API, segments, tags, custom fields, versions/nodes de campagne, membres, invitations) est correcte partout (scoping systématique + 404). **Une seule exception, une vraie fuite inter-tenant** : l'écran « jobs échoués » (#10, ci-dessous), ajouté lors de la vérification d'isolation demandée.
 
 ---
 
@@ -13,15 +13,55 @@
 
 | # | Vulnérabilité | Sévérité | Confirmé | Statut |
 |---|---------------|----------|----------|--------|
+| 10 | **Fuite inter-tenant** : l'écran « jobs échoués » liste et relance les jobs de **tous** les tenants | **Élevé** | Code | ✅ corrigé |
 | 1 | Aucun rate-limiting sur l'authentification (login/signup) | **Élevé** | Code | ✅ corrigé |
 | 2 | SSRF via le test de connexion SMTP | **Moyen→Élevé** | Code | ✅ corrigé |
 | 3 | Open redirect sur `/track/click` (indépendant de la validité du token) | **Moyen** | **Prod** | ✅ corrigé |
 | 4 | Endpoints publics non limités → flooding de la file de jobs (DoS) | **Moyen** | Code | ⚠️ partiel (webhook) |
-| 5 | Webhook SMTP sans vérification de signature | **Faible→Moyen** | Code (déjà noté) |
-| 6 | Désinscription déclenchée en `GET` (prefetch / scanners) | **Faible→Moyen** | Code |
-| 7 | Content-Security-Policy désactivée | **Faible** | **Prod** |
-| 8 | Politique de mot de passe faible (max 32, pas de complexité) | **Faible/Info** | Code |
-| 9 | En-têtes `Referrer-Policy` / `Permissions-Policy` absents | **Info** | **Prod** |
+| 5 | Webhook SMTP sans vérification de signature | **Faible→Moyen** | Code (déjà noté) | ❌ |
+| 6 | Désinscription déclenchée en `GET` (prefetch / scanners) | **Faible→Moyen** | Code | ❌ |
+| 7 | Content-Security-Policy désactivée | **Faible** | **Prod** | ❌ |
+| 8 | Politique de mot de passe faible (max 32, pas de complexité) | **Faible/Info** | Code | ❌ |
+| 9 | En-têtes `Referrer-Policy` / `Permissions-Policy` absents | **Info** | **Prod** | ❌ |
+
+---
+
+## 10. Fuite inter-tenant via l'écran « jobs échoués » — **Élevé**
+
+**Fichiers** : `app/controllers/jobs/failed_jobs_controller.ts`, `app/services/jobs/failed_jobs_service.ts`, `app/policies/observability_policy.ts`, routes `/organizations/:organizationId/projects/:projectId/settings/jobs*`.
+
+C'est **le** point qui répond à la question « un utilisateur peut-il accéder aux ressources d'un autre utilisateur / d'une autre organisation ». Partout ailleurs, le chargement d'une ressource par id est scopé au projet courant (`.withScopes((s) => s.forProject(project)).where('id', params.x)`) et renvoie 404 sinon — pas d'IDOR. **Sauf ici.**
+
+La file BullMQ est **globale**, partagée par tous les projets/organisations. Or :
+
+```ts
+// FailedJobsService.list() — aucun filtre par tenant
+const jobs = await queue.getFailed()   // TOUS les jobs échoués, tous tenants confondus
+return jobs.map((job) => ({ ..., failedReason: job.failedReason, data: job.data }))
+```
+
+```ts
+// retry() — relance n'importe quel jobId global
+const job = await queue.getJob(jobId)
+await job.retry()
+```
+
+La `ObservabilityPolicy` ne vérifie que « l'utilisateur est admin **de sa propre** organisation » (`roleAtLeast(role, 'admin')` sur `project.organizationId`), pas que le job appartient à cette organisation.
+
+**Chaîne d'exploitation (entièrement atteignable par n'importe quel inscrit)** :
+1. Je m'inscris → je deviens **`owner`** de mon organisation (`organization_service.create`, rôle `owner` = rang 3 ≥ `admin`).
+2. Je crée un projet (tout membre peut).
+3. Je vais sur `…/settings/jobs` → `viewFailedJobs` passe (je suis owner), et je vois **les jobs échoués de tous les autres tenants** : `failedReason` (messages d'erreur SMTP pouvant contenir des adresses destinataires / réponses serveur) et `data` (ids de campagnes/contacts/livraisons d'autres organisations).
+4. Je peux **relancer** (`retry`) le job d'un autre tenant → effet de bord cross-tenant (ré-envoi d'un email d'une autre organisation, recalcul de segment, etc.).
+
+**Impact** : divulgation inter-tenant (payloads + raisons d'échec d'autres organisations) **et** action inter-tenant (relance). Sur l'app hébergée multi-tenant, c'est une rupture d'isolation réelle, déclenchable par simple auto-inscription.
+
+**Remédiation** (au choix, à trancher) :
+- **(a) Scoper par projet** : embarquer `projectId` dans le payload de chaque job au dispatch, puis filtrer `list()`/`retry()` sur `ctx.project.id` (rejeter un `jobId` dont le `projectId` ne correspond pas). Le plus correct, mais touche tous les points de dispatch + les jobs déjà en file (sans `projectId`) à traiter comme non affichables.
+- **(b) Réserver l'écran à un opérateur d'instance** : allowlist d'emails/ids via env (pas de notion de super-admin aujourd'hui) — simple, adapté si l'observabilité est pensée pour l'exploitant, pas pour les admins de tenant.
+- **Court terme** : si l'écran n'est pas indispensable en prod multi-tenant, le désactiver (ou le restreindre à `(b)`) en attendant `(a)`.
+
+> **✅ Corrigé (option a)** — `FailedJobsService.list()`/`retry()` prennent désormais `projectId` et ne renvoient/relancent que les jobs de ce projet. Plutôt que de muter le payload à chaque dispatch (les endpoints publics `/track/*` sont volontairement sans accès DB, et les jobs déjà en file n'auraient pas le champ), le projet propriétaire est **résolu depuis les ids du payload** (`deliveryId`→livraison, `segmentId`→segment, `campaignId`→campagne, `executionId`→enrollment), en requêtes `whereIn` groupées (quelques requêtes quel que soit le nombre de jobs). Un job qui ne se résout pas au projet courant (autre tenant, ou job d'instance comme `statistics.aggregate_daily`) est **invisible et non relançable** — un `retry` cross-tenant est traité comme « job introuvable », sans révéler son existence. Couvert par `tests/unit/jobs/failed_jobs_service.spec.ts` (isolation `list`/`retry` entre deux projets). Fichiers : `app/services/jobs/failed_jobs_service.ts`, `app/controllers/jobs/failed_jobs_controller.ts`.
 
 ---
 
