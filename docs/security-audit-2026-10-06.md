@@ -178,15 +178,15 @@ En prod on observe bien `Strict-Transport-Security`, `X-Content-Type-Options: no
 | # | Correctif | Fichiers |
 |---|-----------|----------|
 | 1 | Limiteur `authThrottle` (10 essais / 15 min, par IP) sur `POST /login` et `POST /signup` uniquement (les GET de page restent libres). | `start/limiter.ts`, `start/routes.ts` |
-| 2 | Garde anti-SSRF : résolution DNS du host SMTP puis **refus** de toute IP privée / loopback / link-local (dont `169.254.169.254`) avant d'ouvrir le socket ; connexion sur l'IP vérifiée (anti DNS-rebinding), SNI conservé pour la validation TLS ; message d'erreur générique pour les cibles internes. | `app/utils/network.ts` (nouveau), `app/services/smtp/smtp_connection_tester.ts` |
+| 2 | Garde anti-SSRF : résolution DNS du host SMTP puis **refus** de toute IP privée / loopback / link-local (dont `169.254.169.254`) avant d'ouvrir le socket ; connexion sur l'IP vérifiée (anti DNS-rebinding), SNI conservé pour la validation TLS ; message générique pour les cibles internes. **Appliqué en production uniquement** : la prod hébergée multi-tenant ne doit jamais laisser un locataire atteindre le réseau interne de l'hôte, mais en dev/test (et sur un déploiement auto-hébergé mono-tenant) le relais SMTP est légitimement en `localhost` / LAN privé (Mailcatcher sur `localhost:1025`), où le garde serait un faux positif. | `app/utils/network.ts` (nouveau), `app/services/smtp/smtp_connection_tester.ts` |
 | 3 | `/track/click` ne redirige plus que si le `deliveryToken` signé est valide → l'open redirect anonyme démontré en prod ne fonctionne plus. | `app/controllers/tracking/tracking_controller.ts` |
 | 4 | Limiteur `webhookThrottle` (120 req/min par IP) sur `POST /webhooks/smtp/:connectorId`. `/track/*` laissé libre à dessein (opens légitimes via proxies partagés type Gmail). | `start/limiter.ts`, `start/routes.ts` |
 
-`app/utils/network.ts` (classificateur d'adresses) a été testé sur 16 cas (IPv4/IPv6, IPv4-mapped, CGNAT, publiques) — tous conformes. `tsc --noEmit` et `eslint` passent.
+**Tests** : ajout de `tests/unit/utils/network.spec.ts` (classificateur d'adresses, IPv4/IPv6/IPv4-mapped/CGNAT/publiques) ; mise à jour de `tests/functional/tracking/tracking.spec.ts` (le test qui assertait l'ancien open redirect valide désormais le 404) ; `LIMITER_STORE=memory` ajouté à `.env.test` pour que les compteurs de throttle ne persistent pas entre runs. **Suite complète : 378 tests au vert.** `tsc --noEmit` et `eslint` passent.
 
-**Restant non corrigé** (choix volontaires, nécessitent plus qu'un patch isolé) :
-- **#3 résiduel** : un destinataire détenant un token valide peut encore forger `?u=`. Fix complet = **signer `u`** (HMAC) dans `tracking_content_rewriter` — non fait car casserait le tracking des emails déjà envoyés (liens sans signature).
-- **#5 signature webhook**, **#6 désinscription en POST** (nécessite changement front + en-tête `List-Unsubscribe-Post`), **#7 CSP** (à tester avec Vite/Inertia avant activation), **#8 politique mot de passe**, **#9 en-têtes complémentaires**.
+**Restant non corrigé** (choix volontaires) :
+- **#3 résiduel — non corrigé sciemment** : un destinataire détenant un token valide peut encore substituer `?u=`. Le fix « complet » serait de **signer `u`** (HMAC) dans le lien. Mais : avec un repli pour les emails déjà envoyés (liens sans signature), un attaquant omettrait simplement la signature → protection contournée ; sans repli, on casse le tracking + la redirection de tous les emails déjà en boîte. Signer `u` est donc soit inefficace soit cassant pour une app en production — le correctif #3 (exiger un token valide) est le bon point d'arrêt. Risque résiduel faible (il faut posséder un token de livraison réel).
+- **#5 signature webhook**, **#6 désinscription en POST** (décision produit : change le front + l'en-tête `List-Unsubscribe-Post` et casserait ~6 tests qui supposent une désinscription en GET), **#7 CSP** (à tester avec Vite/Inertia avant activation), **#8 politique mot de passe**, **#9 en-têtes complémentaires**.
 
 ---
 

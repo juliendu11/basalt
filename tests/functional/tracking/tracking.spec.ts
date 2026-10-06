@@ -256,14 +256,17 @@ test.group('Tracking routes (functional)', () => {
     assert.lengthOf(events, 1)
   })
 
-  test('an invalid token on click still redirects if a valid u is present (never breaks recipient navigation)', async ({
+  test('an invalid token on click does NOT redirect, even with a valid u (open redirect closed)', async ({
     client,
   }) => {
+    // docs/security-audit-2026-10-06.md § 3: redirecting on any `?u=`
+    // regardless of the token made this a trusted-domain open redirect. Only
+    // a genuine, HMAC-signed delivery token may now drive a redirect.
     const response = await client
       .get('/track/click/not-a-real-token')
       .qs({ u: 'https://example.com/landing' })
       .redirects(0)
-    response.assertStatus(302)
+    response.assertStatus(404)
   })
 
   test('an invalid token with no u returns 404', async ({ client }) => {
