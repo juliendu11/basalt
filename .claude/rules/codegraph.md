@@ -6,21 +6,17 @@ Avant toute exploration de code, vérifier si `.codegraph/` existe dans le répe
 
 Utiliser CodeGraph **en premier** — jamais `grep`, `find`, `rg`, `ls` récursif ou des lectures massives de fichiers.
 
-| Question                            | Outil               |
-|-------------------------------------|---------------------|
-| "Où est X défini ?"                 | `codegraph_search`  |
-| "Qu'est-ce qui appelle Y ?"         | `codegraph_callers` |
-| "Que fait Y ?"                      | `codegraph_callees` |
-| "Quel impact si je change Z ?"      | `codegraph_impact`  |
-| "Montre le code de Y"               | `codegraph_node`    |
-| "Cartographie cette zone / feature" | `codegraph_context` |
-| "Explore ce module inconnu"         | `codegraph_explore` |
-| "Quels fichiers dans path/"         | `codegraph_files`   |
+Un seul outil : `codegraph_explore`. Il prend une question en langage naturel ou un sac de noms de
+symboles/fichiers, et retourne en un seul appel le code source des symboles concernés, groupé par
+fichier, plus leurs appelants/appelés et le rayon d'impact d'un changement. Il couvre à lui seul
+"où est X défini ?", "qu'est-ce qui appelle Y ?", "quel impact si je change Z ?", "montre le code
+de Y", "cartographie cette zone", "explore ce module inconnu" et "quels fichiers dans path/".
 
 Règles :
 
 - Faire confiance aux résultats CodeGraph (parsing AST complet). Ne pas re-vérifier avec grep.
-- Ne pas chaîner `codegraph_search` + `codegraph_node` quand `codegraph_context` suffit.
+- Un seul appel `codegraph_explore` répond généralement à toute la question ; éviter les appels
+  répétés pour affiner quand la première réponse couvre déjà le besoin.
 - Les lectures directes de fichiers ne sont autorisées qu'**après** une requête CodeGraph, pour vérifier un détail non
   couvert.
 - L'index lag ~500ms après une écriture de fichier ; ne pas re-requêter immédiatement après avoir édité.
