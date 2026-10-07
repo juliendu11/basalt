@@ -136,4 +136,28 @@ export default class SmtpConnectorsController {
     )
     return response.redirect().back()
   }
+
+  async regenerateWebhookSecret({
+    project,
+    params,
+    auth,
+    bouncer,
+    response,
+    session,
+  }: HttpContext) {
+    await bouncer.with(SmtpConnectorPolicy).authorize('update', project)
+
+    const connector = await SmtpConnector.query()
+      .withScopes((scopes) => scopes.forProject(project))
+      .where('id', params.connectorId)
+      .firstOrFail()
+
+    await smtpConnectorService.regenerateWebhookSecret(connector, auth.user!)
+
+    session.flash(
+      'success',
+      'Webhook secret regenerated. Update the webhook URL at your SMTP provider.'
+    )
+    return response.redirect().back()
+  }
 }

@@ -619,6 +619,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/smtp_connectors/smtp_connectors_controller').default['toggleEnabled']>>>
     }
   }
+  'smtp_connectors.regenerateWebhookSecret': {
+    methods: ["POST"]
+    pattern: '/organizations/:organizationId/projects/:projectId/settings/smtp/:connectorId/webhook-secret'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue, ParamValue]
+      params: { organizationId: ParamValue; projectId: ParamValue; connectorId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/smtp_connectors/smtp_connectors_controller').default['regenerateWebhookSecret']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/smtp_connectors/smtp_connectors_controller').default['regenerateWebhookSecret']>>>
+    }
+  }
   'smtp_connectors.testExisting': {
     methods: ["POST"]
     pattern: '/organizations/:organizationId/projects/:projectId/settings/smtp/:connectorId/test'

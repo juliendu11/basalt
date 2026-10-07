@@ -229,6 +229,12 @@ router
                   ])
                   .as('smtp_connectors.toggleEnabled')
                 router
+                  .post('/settings/smtp/:connectorId/webhook-secret', [
+                    controllers.smtpConnectors.SmtpConnectors,
+                    'regenerateWebhookSecret',
+                  ])
+                  .as('smtp_connectors.regenerateWebhookSecret')
+                router
                   .post('/settings/smtp/:connectorId/test', [
                     controllers.smtpConnectors.SmtpConnectorTests,
                     'testExisting',

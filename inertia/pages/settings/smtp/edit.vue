@@ -18,6 +18,12 @@ const props = defineProps<{
   }
   webhookUrl: string
 }>()
+
+function confirmRegenerate(event: MouseEvent) {
+  if (!confirm('Regenerate the webhook secret? The current URL stops working immediately.')) {
+    event.preventDefault()
+  }
+}
 </script>
 
 <template>
@@ -169,6 +175,26 @@ const props = defineProps<{
         It contains a secret: keep it private.
       </p>
       <input type="text" readonly class="input input-bordered w-full" :value="webhookUrl" />
+      <Form
+        method="post"
+        route="smtp_connectors.regenerateWebhookSecret"
+        :params="{
+          organizationId: props.project.organizationId,
+          projectId: props.project.id,
+          connectorId: props.connector.id,
+        }"
+        class="mt-2"
+        v-slot="{ processing }"
+      >
+        <button
+          type="submit"
+          class="btn btn-outline btn-sm"
+          :disabled="processing"
+          @click="confirmRegenerate"
+        >
+          Regenerate secret
+        </button>
+      </Form>
     </div>
   </div>
 </template>

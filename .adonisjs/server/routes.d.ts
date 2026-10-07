@@ -55,6 +55,7 @@ export type ScannedRoutes = {
     'smtp_connectors.destroy': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.setDefault': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.toggleEnabled': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
+    'smtp_connectors.regenerateWebhookSecret': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.testExisting': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'custom_field_definitions.index': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'custom_field_definitions.create': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
@@ -273,6 +274,7 @@ export type ScannedRoutes = {
     'smtp_connectors.test': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'smtp_connectors.setDefault': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.toggleEnabled': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
+    'smtp_connectors.regenerateWebhookSecret': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.testExisting': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'custom_field_definitions.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'tags.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
