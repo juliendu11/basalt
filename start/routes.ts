@@ -8,7 +8,7 @@
 */
 
 import { middleware } from '#start/kernel'
-import { apiThrottle } from '#start/limiter'
+import { apiThrottle, authThrottle, webhookThrottle } from '#start/limiter'
 import { controllers } from '#generated/controllers'
 import router from '@adonisjs/core/services/router'
 
@@ -30,25 +30,30 @@ router
   .get('/track/click/:deliveryToken', [controllers.tracking.Tracking, 'click'])
   .as('tracking.click')
 router
-  .post('/webhooks/smtp/:connectorId', [controllers.tracking.SmtpWebhooks, 'handle'])
+  .post('/webhooks/smtp/:connectorId/:secret', [controllers.tracking.SmtpWebhooks, 'handle'])
   .as('smtp_webhooks.handle')
+  .use(webhookThrottle)
 
 /**
  * Also deliberately PUBLIC (docs/plans/17-unsubscribe.md § Routes) — a
  * global route, not nested under an organization/project prefix, since the
  * visitor clicking this link is unauthenticated and doesn't know either.
- * GET-only, so no CSRF exemption is needed (`config/shield.ts`'s CSRF check
- * only guards the state-changing verbs listed in its `methods` array).
+ * GET only shows a confirmation page; the state change is a POST submitted
+ * from that page (it carries the XSRF cookie, so CSRF stays enabled).
  */
 router.get('/unsubscribe/:token', [controllers.Unsubscribe, 'show']).as('unsubscribe.show')
+router
+  .post('/unsubscribe/:token', [controllers.Unsubscribe, 'confirm'])
+  .as('unsubscribe.confirm')
+  .use(webhookThrottle)
 
 router
   .group(() => {
     router.get('signup', [controllers.NewAccount, 'create'])
-    router.post('signup', [controllers.NewAccount, 'store'])
+    router.post('signup', [controllers.NewAccount, 'store']).use(authThrottle)
 
     router.get('login', [controllers.Session, 'create']).as('session.create')
-    router.post('login', [controllers.Session, 'store'])
+    router.post('login', [controllers.Session, 'store']).use(authThrottle)
   })
   .use(middleware.guest())
 
@@ -223,6 +228,12 @@ router
                     'toggleEnabled',
                   ])
                   .as('smtp_connectors.toggleEnabled')
+                router
+                  .post('/settings/smtp/:connectorId/webhook-secret', [
+                    controllers.smtpConnectors.SmtpConnectors,
+                    'regenerateWebhookSecret',
+                  ])
+                  .as('smtp_connectors.regenerateWebhookSecret')
                 router
                   .post('/settings/smtp/:connectorId/test', [
                     controllers.smtpConnectors.SmtpConnectorTests,

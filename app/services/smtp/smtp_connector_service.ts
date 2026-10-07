@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import encryption from '@adonisjs/core/services/encryption'
@@ -146,6 +147,19 @@ export default class SmtpConnectorService {
 
   async toggleEnabled(connector: SmtpConnector, actor: User): Promise<SmtpConnector> {
     connector.enabled = !connector.enabled
+    await connector.save()
+
+    await SmtpConnectorUpdated.dispatch(connector, actor)
+
+    return connector
+  }
+
+  /**
+   * Rotates the webhook secret (e.g. after a leak): the previous URL stops
+   * working immediately, so the provider must be reconfigured.
+   */
+  async regenerateWebhookSecret(connector: SmtpConnector, actor: User): Promise<SmtpConnector> {
+    connector.webhookSecret = randomBytes(32).toString('base64url')
     await connector.save()
 
     await SmtpConnectorUpdated.dispatch(connector, actor)

@@ -7,8 +7,9 @@ export type ScannedRoutes = {
     'home': { paramsTuple?: []; params?: {} }
     'tracking.open': { paramsTuple: [ParamValue]; params: {'deliveryToken': ParamValue} }
     'tracking.click': { paramsTuple: [ParamValue]; params: {'deliveryToken': ParamValue} }
-    'smtp_webhooks.handle': { paramsTuple: [ParamValue]; params: {'connectorId': ParamValue} }
+    'smtp_webhooks.handle': { paramsTuple: [ParamValue,ParamValue]; params: {'connectorId': ParamValue,'secret': ParamValue} }
     'unsubscribe.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'unsubscribe.confirm': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'new_account.create': { paramsTuple?: []; params?: {} }
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
@@ -54,6 +55,7 @@ export type ScannedRoutes = {
     'smtp_connectors.destroy': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.setDefault': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.toggleEnabled': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
+    'smtp_connectors.regenerateWebhookSecret': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.testExisting': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'custom_field_definitions.index': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'custom_field_definitions.create': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
@@ -254,7 +256,8 @@ export type ScannedRoutes = {
     'api.contacts.show': { paramsTuple: [ParamValue]; params: {'contactId': ParamValue} }
   }
   POST: {
-    'smtp_webhooks.handle': { paramsTuple: [ParamValue]; params: {'connectorId': ParamValue} }
+    'smtp_webhooks.handle': { paramsTuple: [ParamValue,ParamValue]; params: {'connectorId': ParamValue,'secret': ParamValue} }
+    'unsubscribe.confirm': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
     'session.destroy': { paramsTuple?: []; params?: {} }
@@ -271,6 +274,7 @@ export type ScannedRoutes = {
     'smtp_connectors.test': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'smtp_connectors.setDefault': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.toggleEnabled': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
+    'smtp_connectors.regenerateWebhookSecret': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'smtp_connectors.testExisting': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'connectorId': ParamValue} }
     'custom_field_definitions.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'tags.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }

@@ -43,28 +43,40 @@ export default class TrackingController {
   async click({ params, request, response }: HttpContext) {
     const deliveryId = deliveryTokenService.decode(params.deliveryToken)
     const rawUrl = request.input('u')
+    const signature = request.input('s')
     const targetUrl = this.#validRedirectTarget(rawUrl)
 
-    if (deliveryId !== null) {
-      await queueDispatcher.dispatch('tracking', 'tracking.process_event', {
-        deliveryId,
-        type: 'clicked',
-        metadata: {
-          url: targetUrl,
-          userAgent: request.header('user-agent') ?? null,
-        },
-      })
+    // A redirect happens only for a genuine, unmodified tracked link: a valid
+    // delivery token, a valid http(s) target, AND a signature binding that
+    // exact target to that token (docs/security-audit-2026-10-06.md § 3).
+    // Requiring the token alone stopped anonymous open-redirect abuse; the
+    // `s` signature closes the residual case where a recipient holding a real
+    // token swaps `?u=` for an arbitrary URL — now that fails the check.
+    // Links from emails sent before this change carry no `s` and no longer
+    // redirect (accepted trade-off).
+    const authorized =
+      deliveryId !== null &&
+      targetUrl !== null &&
+      typeof signature === 'string' &&
+      deliveryTokenService.verifyUrl(params.deliveryToken, targetUrl, signature)
+
+    if (!authorized) {
+      return response.status(404).send('')
     }
 
-    // Never break the recipient's navigation for a tracking problem
-    // (invalid/expired token) as long as a valid target URL is present —
-    // docs/plans/16-email-tracking.md § Edge cases. `withQs(false)`:
-    // this app defaults `redirect.forwardQueryString` to `true`
-    // (config/app.ts), which would otherwise carry our own `?u=...`
-    // tracking param over onto the recipient's landing page URL.
-    if (targetUrl) return response.redirect().withQs(false).toPath(targetUrl)
+    await queueDispatcher.dispatch('tracking', 'tracking.process_event', {
+      deliveryId,
+      type: 'clicked',
+      metadata: {
+        url: targetUrl,
+        userAgent: request.header('user-agent') ?? null,
+      },
+    })
 
-    return response.status(404).send('')
+    // `withQs(false)`: this app defaults `redirect.forwardQueryString` to
+    // `true` (config/app.ts), which would otherwise carry our own
+    // `?u=...&s=...` tracking params over onto the recipient's landing page.
+    return response.redirect().withQs(false).toPath(targetUrl)
   }
 
   /**
