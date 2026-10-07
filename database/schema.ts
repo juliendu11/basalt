@@ -649,7 +649,7 @@ export class SegmentContactSchema extends BaseModel {
 }
 
 export class SmtpConnectorSchema extends BaseModel {
-  static $columns = ['createdAt', 'dailyLimit', 'enabled', 'encryption', 'fromEmail', 'fromName', 'host', 'id', 'isDefault', 'lastTestStatus', 'lastTestedAt', 'name', 'passwordEncrypted', 'port', 'projectId', 'replyTo', 'updatedAt', 'username'] as const
+  static $columns = ['createdAt', 'dailyLimit', 'enabled', 'encryption', 'fromEmail', 'fromName', 'host', 'id', 'isDefault', 'lastTestStatus', 'lastTestedAt', 'name', 'passwordEncrypted', 'port', 'projectId', 'replyTo', 'updatedAt', 'username', 'webhookSecret'] as const
   $columns = SmtpConnectorSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -687,6 +687,8 @@ export class SmtpConnectorSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare username: string
+  @column()
+  declare webhookSecret: string
 }
 
 export class TagSchema extends BaseModel {

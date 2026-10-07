@@ -12,6 +12,7 @@ export interface ApiDefinition {
   }
   unsubscribe: {
     show: typeof routes['unsubscribe.show']
+    confirm: typeof routes['unsubscribe.confirm']
   }
   newAccount: {
     create: typeof routes['new_account.create']
@@ -76,6 +77,7 @@ export interface ApiDefinition {
     destroy: typeof routes['smtp_connectors.destroy']
     setDefault: typeof routes['smtp_connectors.setDefault']
     toggleEnabled: typeof routes['smtp_connectors.toggleEnabled']
+    regenerateWebhookSecret: typeof routes['smtp_connectors.regenerateWebhookSecret']
     testExisting: typeof routes['smtp_connectors.testExisting']
   }
   customFieldDefinitions: {

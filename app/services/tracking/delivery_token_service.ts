@@ -65,4 +65,29 @@ export default class DeliveryTokenService {
       .digest('base64url')
       .slice(0, SIGNATURE_LENGTH)
   }
+
+  /**
+   * Binds a click-redirect target URL to its delivery token
+   * (docs/security-audit-2026-10-06.md § 3). `/track/click` must not act as
+   * an open redirect: requiring a valid token already stops anonymous abuse,
+   * but a recipient holding one real token could still swap `?u=` for any
+   * URL. Signing the pair makes `u` untamperable — change the URL and the
+   * signature no longer matches. Keyed on the token string (both the
+   * rewriter and the controller hold it verbatim), with a `\n` separator so
+   * `(a, bc)` and `(ab, c)` can't collide.
+   */
+  signUrl(token: string, url: string): string {
+    return createHmac('sha256', env.get('APP_KEY').release())
+      .update(`${token}\n${url}`)
+      .digest('base64url')
+      .slice(0, SIGNATURE_LENGTH)
+  }
+
+  /** Constant-time check that `signature` was produced by `signUrl(token, url)`. */
+  verifyUrl(token: string, url: string, signature: string): boolean {
+    const expected = Buffer.from(this.signUrl(token, url))
+    const provided = Buffer.from(signature)
+    if (expected.length !== provided.length) return false
+    return timingSafeEqual(expected, provided)
+  }
 }

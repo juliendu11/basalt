@@ -36,7 +36,7 @@ const shieldConfig = defineConfig({
      * Route patterns to exclude from CSRF checks.
      * Useful for external webhooks or API endpoints.
      *
-     * `/webhooks/smtp/:connectorId` (docs/plans/16-email-tracking.md) is hit by an
+     * `/webhooks/smtp/:connectorId/:secret` (docs/plans/16-email-tracking.md) is hit by an
      * external SMTP provider, which never carries a CSRF token — the
      * `/track/*` routes are all `GET`, already exempt by verb, so no entry
      * is needed for those.
@@ -48,7 +48,7 @@ const shieldConfig = defineConfig({
      * browser session, so there's no CSRF token to carry either.
      */
     exceptRoutes: (ctx) =>
-      ctx.route?.pattern === '/webhooks/smtp/:connectorId' ||
+      ctx.route?.pattern === '/webhooks/smtp/:connectorId/:secret' ||
       Boolean(ctx.route?.pattern.startsWith('/api/v1/')),
 
     /**

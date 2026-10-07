@@ -48,7 +48,7 @@ test.group('Unsubscribe (public link)', () => {
     const { project, contact } = await createFixtures()
     const token = await unsubscribeTokenService.getOrCreate(project, contact)
 
-    const response = await client.get(`/unsubscribe/${token.token}`)
+    const response = await client.post(`/unsubscribe/${token.token}`).withCsrfToken()
 
     response.assertStatus(200)
     assert.notInclude(response.text(), contact.email)
@@ -57,11 +57,41 @@ test.group('Unsubscribe (public link)', () => {
     assert.equal(contact.status, 'unsubscribed')
   })
 
+  test('GET only shows a confirmation and never unsubscribes (link scanners are harmless)', async ({
+    client,
+    assert,
+  }) => {
+    const { project, contact } = await createFixtures()
+    const token = await unsubscribeTokenService.getOrCreate(project, contact)
+
+    const response = await client.get(`/unsubscribe/${token.token}`)
+
+    response.assertStatus(200)
+    await contact.refresh()
+    assert.equal(contact.status, 'subscribed')
+    await token.refresh()
+    assert.isNull(token.usedAt)
+  })
+
+  test('POST without a CSRF token is rejected and does not unsubscribe', async ({
+    client,
+    assert,
+  }) => {
+    const { project, contact } = await createFixtures()
+    const token = await unsubscribeTokenService.getOrCreate(project, contact)
+
+    const response = await client.post(`/unsubscribe/${token.token}`).redirects(0)
+
+    assert.notEqual(response.status(), 200)
+    await contact.refresh()
+    assert.equal(contact.status, 'subscribed')
+  })
+
   test('an invalid token still returns 200 with a generic message, never an error or contact data', async ({
     client,
     assert,
   }) => {
-    const response = await client.get('/unsubscribe/this-token-does-not-exist')
+    const response = await client.post('/unsubscribe/this-token-does-not-exist').withCsrfToken()
 
     response.assertStatus(200)
     assert.notInclude(response.text(), '@example.com')
@@ -74,8 +104,8 @@ test.group('Unsubscribe (public link)', () => {
     const { project, contact } = await createFixtures()
     const token = await unsubscribeTokenService.getOrCreate(project, contact)
 
-    await client.get(`/unsubscribe/${token.token}`)
-    const second = await client.get(`/unsubscribe/${token.token}`)
+    await client.post(`/unsubscribe/${token.token}`).withCsrfToken()
+    const second = await client.post(`/unsubscribe/${token.token}`).withCsrfToken()
 
     second.assertStatus(200)
     await contact.refresh()
@@ -176,7 +206,7 @@ test.group('Unsubscribe reachable from every non-subscribed status', () => {
       await contactService.changeStatus(contact, startingStatus)
       const token = await unsubscribeTokenService.getOrCreate(project, contact)
 
-      const response = await client.get(`/unsubscribe/${token.token}`)
+      const response = await client.post(`/unsubscribe/${token.token}`).withCsrfToken()
 
       response.assertStatus(200)
       const updated = await Contact.findOrFail(contact.id)
@@ -251,7 +281,7 @@ test.group('Unsubscribing via the link skips a pending send in an active campaig
     // Contact unsubscribes via the real public link before the engine
     // ever reaches the send_email node.
     const token = await unsubscribeTokenService.getOrCreate(project, contact)
-    await client.get(`/unsubscribe/${token.token}`)
+    await client.post(`/unsubscribe/${token.token}`).withCsrfToken()
 
     await engine.advance({ executionId: execution.id }) // source
     await engine.advance({ executionId: execution.id }) // send (skipped)

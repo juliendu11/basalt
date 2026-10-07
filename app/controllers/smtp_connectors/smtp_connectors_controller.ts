@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import env from '#start/env'
 import SmtpConnector from '#models/smtp_connector'
 import SmtpConnectorPolicy from '#policies/smtp_connector_policy'
 import SmtpConnectorService from '#services/smtp/smtp_connector_service'
@@ -62,6 +63,9 @@ export default class SmtpConnectorsController {
     return inertia.render('settings/smtp/edit', {
       project: ProjectTransformer.transform(project),
       connector: SmtpConnectorTransformer.transform(connector),
+      // Only ever sent to users allowed to update the connector (authorized
+      // above) — the secret is deliberately not part of the transformer.
+      webhookUrl: `${env.get('APP_URL')}/webhooks/smtp/${connector.id}/${connector.webhookSecret}`,
     })
   }
 
@@ -129,6 +133,30 @@ export default class SmtpConnectorsController {
     session.flash(
       'success',
       connector.enabled ? `${connector.name} enabled.` : `${connector.name} disabled.`
+    )
+    return response.redirect().back()
+  }
+
+  async regenerateWebhookSecret({
+    project,
+    params,
+    auth,
+    bouncer,
+    response,
+    session,
+  }: HttpContext) {
+    await bouncer.with(SmtpConnectorPolicy).authorize('update', project)
+
+    const connector = await SmtpConnector.query()
+      .withScopes((scopes) => scopes.forProject(project))
+      .where('id', params.connectorId)
+      .firstOrFail()
+
+    await smtpConnectorService.regenerateWebhookSecret(connector, auth.user!)
+
+    session.flash(
+      'success',
+      'Webhook secret regenerated. Update the webhook URL at your SMTP provider.'
     )
     return response.redirect().back()
   }

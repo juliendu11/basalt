@@ -14,6 +14,7 @@ export default class FailedJobsController {
 
     try {
       const jobs = await failedJobsService.list(
+        project.id,
         queue && queueNames.includes(queue) ? queue : undefined
       )
 
@@ -46,7 +47,7 @@ export default class FailedJobsController {
     }
 
     try {
-      const retried = await failedJobsService.retry(queue, params.jobId)
+      const retried = await failedJobsService.retry(project.id, queue, params.jobId)
       session.flash(retried ? 'success' : 'error', retried ? 'Job re-queued.' : 'Job not found.')
     } catch (error) {
       if (!(error instanceof FailedJobsUnavailableError)) throw error
