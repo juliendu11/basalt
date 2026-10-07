@@ -16,6 +16,7 @@ const props = defineProps<{
     replyTo: string | null
     dailyLimit: number | null
   }
+  webhookUrl: string
 }>()
 </script>
 
@@ -160,5 +161,14 @@ const props = defineProps<{
 
       <button type="submit" class="btn btn-primary" :disabled="processing">Save</button>
     </Form>
+
+    <div class="mt-8">
+      <h2 class="mb-1 text-lg font-semibold">Delivery webhook</h2>
+      <p class="mb-2 text-sm opacity-70">
+        Configure this URL at your SMTP provider to report delivered / bounced / complaint events.
+        It contains a secret: keep it private.
+      </p>
+      <input type="text" readonly class="input input-bordered w-full" :value="webhookUrl" />
+    </div>
   </div>
 </template>

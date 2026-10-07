@@ -26,8 +26,8 @@ const routes = {
   },
   'smtp_webhooks.handle': {
     methods: ["POST"],
-    pattern: '/webhooks/smtp/:connectorId',
-    tokens: [{"old":"/webhooks/smtp/:connectorId","type":0,"val":"webhooks","end":""},{"old":"/webhooks/smtp/:connectorId","type":0,"val":"smtp","end":""},{"old":"/webhooks/smtp/:connectorId","type":1,"val":"connectorId","end":""}],
+    pattern: '/webhooks/smtp/:connectorId/:secret',
+    tokens: [{"old":"/webhooks/smtp/:connectorId/:secret","type":0,"val":"webhooks","end":""},{"old":"/webhooks/smtp/:connectorId/:secret","type":0,"val":"smtp","end":""},{"old":"/webhooks/smtp/:connectorId/:secret","type":1,"val":"connectorId","end":""},{"old":"/webhooks/smtp/:connectorId/:secret","type":1,"val":"secret","end":""}],
     types: placeholder as Registry['smtp_webhooks.handle']['types'],
   },
   'unsubscribe.show': {
@@ -35,6 +35,12 @@ const routes = {
     pattern: '/unsubscribe/:token',
     tokens: [{"old":"/unsubscribe/:token","type":0,"val":"unsubscribe","end":""},{"old":"/unsubscribe/:token","type":1,"val":"token","end":""}],
     types: placeholder as Registry['unsubscribe.show']['types'],
+  },
+  'unsubscribe.confirm': {
+    methods: ["POST"],
+    pattern: '/unsubscribe/:token',
+    tokens: [{"old":"/unsubscribe/:token","type":0,"val":"unsubscribe","end":""},{"old":"/unsubscribe/:token","type":1,"val":"token","end":""}],
+    types: placeholder as Registry['unsubscribe.confirm']['types'],
   },
   'new_account.create': {
     methods: ["GET","HEAD"],

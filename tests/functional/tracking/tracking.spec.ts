@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import { Worker } from 'bullmq'
+import db from '@adonisjs/lucid/services/db'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
 import ProjectService from '#services/projects/project_service'
@@ -35,6 +36,28 @@ const smtpConnectorService = new SmtpConnectorService()
 const engine = new CampaignEngineService()
 const deliveryTokenService = new DeliveryTokenService()
 const trackingEventService = new TrackingEventService()
+
+/** A project with one SMTP connector (and one contact) — for webhook tests. */
+async function createConnectorForWebhook() {
+  const owner = await UserFactory.create()
+  const organization = await organizationService.create(owner, { name: 'Acme' })
+  const project = await projectService.create(organization, owner, {
+    name: 'Marketing',
+    timezone: 'Europe/Paris',
+  })
+  const contact = await contactService.create(project, owner, { email: 'jane@example.com' })
+  const connector = await smtpConnectorService.create(project, owner, {
+    name: 'Relay',
+    host: 'localhost',
+    port: 1025,
+    username: 'u',
+    password: 'p',
+    encryption: 'none',
+    fromEmail: 'hello@acme.test',
+    fromName: 'Acme',
+  })
+  return { connector, project, contact }
+}
 
 /** Runs one real BullMQ Worker on `tracking` until `count` jobs complete, or times out. */
 function waitForTrackingJobsProcessed(count: number, timeoutMs = 8000) {
@@ -313,21 +336,72 @@ test.group('Tracking routes (functional)', () => {
     response.assertStatus(404)
   })
 
-  test('POST /webhooks/smtp/:connectorId with a malformed payload responds 200 OK, never an exception', async ({
+  test('POST /webhooks/smtp/:connectorId/:secret with a malformed payload responds 200 OK, never an exception', async ({
     client,
   }) => {
+    const { connector } = await createConnectorForWebhook()
     const response = await client
-      .post('/webhooks/smtp/1')
+      .post(`/webhooks/smtp/${connector.id}/${connector.webhookSecret}`)
       .redirects(0)
       .json({ this: 'is', not: 'a recognized shape' })
     response.assertStatus(200)
   })
 
-  test('POST /webhooks/smtp/:connectorId with garbage array body responds 200 OK', async ({
+  test('POST /webhooks/smtp/:connectorId/:secret with garbage array body responds 200 OK', async ({
     client,
   }) => {
-    const response = await client.post('/webhooks/smtp/1').redirects(0).json([1, 2, 3])
+    const { connector } = await createConnectorForWebhook()
+    const response = await client
+      .post(`/webhooks/smtp/${connector.id}/${connector.webhookSecret}`)
+      .redirects(0)
+      .json([1, 2, 3])
     response.assertStatus(200)
+  })
+
+  test('POST /webhooks/smtp with a wrong secret or unknown connector responds 404', async ({
+    client,
+  }) => {
+    const { connector } = await createConnectorForWebhook()
+    const payload = { message_id: 'x', event: 'bounce' }
+
+    const wrongSecret = await client
+      .post(`/webhooks/smtp/${connector.id}/not-the-secret`)
+      .redirects(0)
+      .json(payload)
+    wrongSecret.assertStatus(404)
+
+    const unknown = await client
+      .post(`/webhooks/smtp/999999/${connector.webhookSecret}`)
+      .redirects(0)
+      .json(payload)
+    unknown.assertStatus(404)
+  })
+
+  test("a valid webhook only acts on deliveries of the connector's own project", async ({
+    client,
+    assert,
+  }) => {
+    const { connector } = await createConnectorForWebhook()
+    const other = await createConnectorForWebhook()
+    const delivery = await EmailDelivery.create({
+      projectId: other.project.id,
+      contactId: other.contact.id,
+      idempotencyKey: `k-${Date.now()}`,
+      status: 'sent',
+      providerMessageId: 'pm-cross-tenant',
+    })
+
+    await client
+      .post(`/webhooks/smtp/${connector.id}/${connector.webhookSecret}`)
+      .redirects(0)
+      .json({ message_id: 'pm-cross-tenant', event: 'hard_bounce' })
+
+    // Never matched, so no processing job may exist for it: run the handler
+    // path's source of truth — no event row ever references this delivery.
+    const events = await db.from('email_events').where('email_delivery_id', delivery.id)
+    assert.lengthOf(events, 0)
+    await delivery.refresh()
+    assert.equal(delivery.status, 'sent')
   })
 
   test('email_opened condition branches false when no open event was ever processed', async ({

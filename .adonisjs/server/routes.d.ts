@@ -7,8 +7,9 @@ export type ScannedRoutes = {
     'home': { paramsTuple?: []; params?: {} }
     'tracking.open': { paramsTuple: [ParamValue]; params: {'deliveryToken': ParamValue} }
     'tracking.click': { paramsTuple: [ParamValue]; params: {'deliveryToken': ParamValue} }
-    'smtp_webhooks.handle': { paramsTuple: [ParamValue]; params: {'connectorId': ParamValue} }
+    'smtp_webhooks.handle': { paramsTuple: [ParamValue,ParamValue]; params: {'connectorId': ParamValue,'secret': ParamValue} }
     'unsubscribe.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'unsubscribe.confirm': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'new_account.create': { paramsTuple?: []; params?: {} }
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
@@ -254,7 +255,8 @@ export type ScannedRoutes = {
     'api.contacts.show': { paramsTuple: [ParamValue]; params: {'contactId': ParamValue} }
   }
   POST: {
-    'smtp_webhooks.handle': { paramsTuple: [ParamValue]; params: {'connectorId': ParamValue} }
+    'smtp_webhooks.handle': { paramsTuple: [ParamValue,ParamValue]; params: {'connectorId': ParamValue,'secret': ParamValue} }
+    'unsubscribe.confirm': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
     'session.destroy': { paramsTuple?: []; params?: {} }

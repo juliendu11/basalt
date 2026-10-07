@@ -12,6 +12,7 @@ export interface ApiDefinition {
   }
   unsubscribe: {
     show: typeof routes['unsubscribe.show']
+    confirm: typeof routes['unsubscribe.confirm']
   }
   newAccount: {
     create: typeof routes['new_account.create']

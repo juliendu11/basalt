@@ -45,11 +45,11 @@ export interface Registry {
   }
   'smtp_webhooks.handle': {
     methods: ["POST"]
-    pattern: '/webhooks/smtp/:connectorId'
+    pattern: '/webhooks/smtp/:connectorId/:secret'
     types: {
       body: {}
-      paramsTuple: [ParamValue]
-      params: { connectorId: ParamValue }
+      paramsTuple: [ParamValue, ParamValue]
+      params: { connectorId: ParamValue; secret: ParamValue }
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/tracking/smtp_webhooks_controller').default['handle']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/tracking/smtp_webhooks_controller').default['handle']>>>
@@ -65,6 +65,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/unsubscribe_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/unsubscribe_controller').default['show']>>>
+    }
+  }
+  'unsubscribe.confirm': {
+    methods: ["POST"]
+    pattern: '/unsubscribe/:token'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { token: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/unsubscribe_controller').default['confirm']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/unsubscribe_controller').default['confirm']>>>
     }
   }
   'new_account.create': {

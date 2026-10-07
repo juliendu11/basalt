@@ -151,6 +151,8 @@ N'importe qui peut `POST /webhooks/smtp/:connectorId` avec un `providerMessageId
 
 **Remédiation** : ajouter une colonne secret de signature par connecteur et vérifier la signature HMAC du provider ; en attendant, au minimum un secret partagé dans l'URL/segment `:connectorId` non devinable.
 
+**✅ Corrigé (variante « secret dans l'URL »)** : nouvelle colonne `smtp_connectors.webhook_secret` (32 octets aléatoires, générée à la création par un hook du modèle, backfill des connecteurs existants par la migration). La route est désormais `POST /webhooks/smtp/:connectorId/:secret` : connecteur inconnu ou secret faux → **404** (comparaison constant-time) ; les événements ne sont appliqués qu'aux livraisons **du projet du connecteur**. L'URL complète est affichée sur l'écran d'édition du connecteur (réservé aux admins/owners ; le secret n'est pas dans le transformer). **À faire côté exploitation** : mettre à jour l'URL du webhook chez le fournisseur (l'ancienne `/webhooks/smtp/:id` n'existe plus). **Limites** : pas de rotation du secret depuis l'UI ; une vraie vérification de signature HMAC par fournisseur reste un chantier à part.
+
 ---
 
 ## 6. Désinscription déclenchée en `GET` — **Faible→Moyen**
@@ -229,7 +231,7 @@ En prod on observe bien `Strict-Transport-Security`, `X-Content-Type-Options: no
 **#3 désormais totalement fermé (signature HMAC de `u`)** : chaque lien de clic porte un paramètre `s = HMAC(APP_KEY, token + "\n" + url)` apposé par `TrackingContentRewriter`. `/track/click` ne redirige (et n'enregistre le clic) que si `token` valide **ET** `u` http(s) **ET** `s` vérifie la paire — une URL `u` trafiquée invalide la signature. **Sans repli** : les emails déjà envoyés (liens sans `s`) ne redirigent plus — compromis accepté. Fichiers : `app/services/tracking/delivery_token_service.ts` (`signUrl`/`verifyUrl`, comparaison constant-time), `app/services/tracking/tracking_content_rewriter.ts`, `app/controllers/tracking/tracking_controller.ts`. Tests : `tracking.spec.ts` (u trafiqué / signature absente → 404, lien signé valide → 302), `delivery_token_service.spec.ts`, `tracking_content_rewriter.spec.ts`.
 
 **Restant non corrigé** (choix volontaires) :
-- **#5 signature webhook**, **#7 CSP** (à tester avec Vite/Inertia avant activation), **#8 politique mot de passe**, **#9 en-têtes complémentaires**.
+- **#7 CSP** (à tester avec Vite/Inertia avant activation), **#8 politique mot de passe**, **#9 en-têtes complémentaires**.
 
 ---
 

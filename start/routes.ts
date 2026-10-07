@@ -30,7 +30,7 @@ router
   .get('/track/click/:deliveryToken', [controllers.tracking.Tracking, 'click'])
   .as('tracking.click')
 router
-  .post('/webhooks/smtp/:connectorId', [controllers.tracking.SmtpWebhooks, 'handle'])
+  .post('/webhooks/smtp/:connectorId/:secret', [controllers.tracking.SmtpWebhooks, 'handle'])
   .as('smtp_webhooks.handle')
   .use(webhookThrottle)
 

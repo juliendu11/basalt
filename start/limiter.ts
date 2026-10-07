@@ -27,7 +27,7 @@ export const authThrottle = limiter.define('auth', () => {
 })
 
 /**
- * Guards the public SMTP webhook (`POST /webhooks/smtp/:connectorId`), which
+ * Guards the public SMTP webhook (`POST /webhooks/smtp/:connectorId/:secret`), which
  * is unauthenticated and dispatches a queue job per request, from being used
  * to flood the job queue (docs/security-audit-2026-10-06.md § 4). Generous
  * per-IP budget so a real provider's bursts aren't dropped. The `GET /track/*`
