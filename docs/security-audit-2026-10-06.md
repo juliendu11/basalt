@@ -17,12 +17,14 @@
 | 1 | Aucun rate-limiting sur l'authentification (login/signup) | **Élevé** | Code | ✅ corrigé |
 | 2 | SSRF via le test de connexion SMTP | **Moyen→Élevé** | Code | ✅ corrigé |
 | 3 | Open redirect sur `/track/click` (indépendant de la validité du token) | **Moyen** | **Prod** | ✅ corrigé |
-| 4 | Endpoints publics non limités → flooding de la file de jobs (DoS) | **Moyen** | Code | ⚠️ partiel (webhook) |
-| 5 | Webhook SMTP sans vérification de signature | **Faible→Moyen** | Code (déjà noté) | ❌ |
+| 4 | Endpoints publics non limités → flooding de la file de jobs (DoS) | **Moyen** | Code | ⚠️ partiel (webhook + unsubscribe ; `/track/*` volontairement libre) |
+| 5 | Webhook SMTP sans vérification de signature | **Faible→Moyen** | Code (déjà noté) | ✅ corrigé |
 | 6 | Désinscription déclenchée en `GET` (prefetch / scanners) | **Faible→Moyen** | Code | ✅ corrigé |
-| 7 | Content-Security-Policy désactivée | **Faible** | **Prod** | ❌ |
-| 8 | Politique de mot de passe faible (max 32, pas de complexité) | **Faible/Info** | Code | ❌ |
-| 9 | En-têtes `Referrer-Policy` / `Permissions-Policy` absents | **Info** | **Prod** | ❌ |
+| 7 | Content-Security-Policy désactivée | **Faible** | **Prod** | ⏸ non retenu |
+| 8 | Politique de mot de passe faible (max 32, pas de complexité) | **Faible/Info** | Code | ⏸ non retenu |
+| 9 | En-têtes `Referrer-Policy` / `Permissions-Policy` absents | **Info** | **Prod** | ⏸ non retenu |
+
+> **Légende** : ✅ corrigé · ⚠️ partiellement traité · ⏸ non retenu (décision du 2026-10-07 de ne pas traiter #7, #8 et #9 ; risque accepté).
 
 ---
 
@@ -137,6 +139,8 @@ Ces routes publiques, non authentifiées et sans rate-limit, poussent un job Bul
 
 **Impact** : un attaquant peut inonder la file Redis/BullMQ (épuisement mémoire/CPU, retard de traitement des vrais événements) sans authentification. Le webhook, n'ayant pas de signature (cf. #5), accepte en plus n'importe quel corps.
 
+**⚠️ Partiel** : `POST /webhooks/smtp/*` (`webhookThrottle`, 120 req/min/IP) et `POST /unsubscribe/:token` sont limités. `/track/*` reste **volontairement** non limité (les ouvertures légitimes transitent par des IP de proxys partagés type Gmail ; un plafond par IP perdrait de vrais événements). Le webhook ne dispatche désormais un job que pour une livraison connue du projet du connecteur (cf. #5). La taille du payload n'est pas bornée explicitement.
+
 **Remédiation** : appliquer un throttle par IP sur `/track/*` et `/webhooks/smtp/*` ; borner la taille du payload webhook ; éventuellement ne dispatcher un job que si le token/`providerMessageId` correspond à une livraison connue (déplacer la résolution en amont du dispatch pour `/track/*` comme déjà fait pour le webhook).
 
 ---
@@ -213,7 +217,7 @@ En prod on observe bien `Strict-Transport-Security`, `X-Content-Type-Options: no
 1. **#1 rate-limiting auth** — rapide (`.use(throttle)` + limiteur dédié), fort gain.
 2. **#2 SSRF SMTP** — bloquer les IP internes + ne pas renvoyer l'erreur brute.
 3. **#3 open redirect** — ne rediriger que sur token valide / signer `u`.
-4. **#4 throttle endpoints publics**, puis **#6 unsubscribe POST**, **#5 signature webhook**, **#7 CSP**, **#8/#9**.
+4. **#4 throttle endpoints publics**, puis **#6 unsubscribe POST**, **#5 signature webhook**. *(#7 CSP, #8 mot de passe, #9 en-têtes : non retenus.)*
 
 ---
 
@@ -224,14 +228,18 @@ En prod on observe bien `Strict-Transport-Security`, `X-Content-Type-Options: no
 | 1 | Limiteur `authThrottle` (10 essais / 15 min, par IP) sur `POST /login` et `POST /signup` uniquement (les GET de page restent libres). | `start/limiter.ts`, `start/routes.ts` |
 | 2 | Garde anti-SSRF : résolution DNS du host SMTP puis **refus** de toute IP privée / loopback / link-local (dont `169.254.169.254`) avant d'ouvrir le socket ; connexion sur l'IP vérifiée (anti DNS-rebinding), SNI conservé pour la validation TLS ; message générique pour les cibles internes. **Appliqué en production uniquement** : la prod hébergée multi-tenant ne doit jamais laisser un locataire atteindre le réseau interne de l'hôte, mais en dev/test (et sur un déploiement auto-hébergé mono-tenant) le relais SMTP est légitimement en `localhost` / LAN privé (Mailcatcher sur `localhost:1025`), où le garde serait un faux positif. | `app/utils/network.ts` (nouveau), `app/services/smtp/smtp_connection_tester.ts` |
 | 3 | `/track/click` ne redirige que si le `deliveryToken` est valide **et** si la signature HMAC `s` lie l'URL `u` au token (`u` trafiqué → signature invalide → 404). Ferme l'open redirect anonyme **et** la substitution de `u` par un détenteur de token. | `delivery_token_service.ts`, `tracking_content_rewriter.ts`, `tracking_controller.ts` |
-| 4 | Limiteur `webhookThrottle` (120 req/min par IP) sur `POST /webhooks/smtp/:connectorId`. `/track/*` laissé libre à dessein (opens légitimes via proxies partagés type Gmail). | `start/limiter.ts`, `start/routes.ts` |
+| 4 | Limiteur `webhookThrottle` (120 req/min par IP) sur `POST /webhooks/smtp/:connectorId/:secret` et sur `POST /unsubscribe/:token`. `/track/*` laissé libre à dessein (opens légitimes via proxies partagés type Gmail). | `start/limiter.ts`, `start/routes.ts` |
+| 5 | Secret par connecteur dans l'URL du webhook (`smtp_connectors.webhook_secret`), 404 si faux, événements restreints au projet du connecteur ; affichage de l'URL et **rotation** du secret depuis l'écran d'édition. | migration `add_webhook_secret_to_smtp_connectors_table`, `app/models/smtp_connector.ts`, `smtp_webhooks_controller.ts`, `smtp_connectors_controller.ts`, `smtp_connector_service.ts`, `settings/smtp/edit.vue`, `config/shield.ts` |
+| 6 | `GET /unsubscribe/:token` = page de confirmation sans effet de bord ; désinscription par `POST` (CSRF actif). L'en-tête `List-Unsubscribe` n'est pas émis par l'app (hors périmètre). | `unsubscribe_controller.ts`, `unsubscribe_token_service.ts` (`peek`), `unsubscribe/show.vue`, `start/routes.ts` |
+| 10 | Écran « jobs échoués » scopé par projet (résolution du projet propriétaire depuis les ids du payload). | `failed_jobs_service.ts`, `failed_jobs_controller.ts` |
 
-**Tests** : ajout de `tests/unit/utils/network.spec.ts` (classificateur d'adresses, IPv4/IPv6/IPv4-mapped/CGNAT/publiques) ; mise à jour de `tests/functional/tracking/tracking.spec.ts` (le test qui assertait l'ancien open redirect valide désormais le 404) ; `LIMITER_STORE=memory` ajouté à `.env.test` pour que les compteurs de throttle ne persistent pas entre runs. **Suite complète : 378 tests au vert.** `tsc --noEmit` et `eslint` passent.
+**Tests** : ajout de `tests/unit/utils/network.spec.ts` (classificateur d'adresses, IPv4/IPv6/IPv4-mapped/CGNAT/publiques) ; mise à jour de `tests/functional/tracking/tracking.spec.ts` (le test qui assertait l'ancien open redirect valide désormais le 404) ; `LIMITER_STORE=memory` ajouté à `.env.test` pour que les compteurs de throttle ne persistent pas entre runs. Ajout de `smtp_webhook_secret.spec.ts` (rotation, droits), de tests de secret/isolation webhook, et de tests GET-sans-effet / POST-CSRF pour la désinscription. **Suite complète : 389 tests au vert.** `tsc --noEmit` et `eslint` passent.
 
 **#3 désormais totalement fermé (signature HMAC de `u`)** : chaque lien de clic porte un paramètre `s = HMAC(APP_KEY, token + "\n" + url)` apposé par `TrackingContentRewriter`. `/track/click` ne redirige (et n'enregistre le clic) que si `token` valide **ET** `u` http(s) **ET** `s` vérifie la paire — une URL `u` trafiquée invalide la signature. **Sans repli** : les emails déjà envoyés (liens sans `s`) ne redirigent plus — compromis accepté. Fichiers : `app/services/tracking/delivery_token_service.ts` (`signUrl`/`verifyUrl`, comparaison constant-time), `app/services/tracking/tracking_content_rewriter.ts`, `app/controllers/tracking/tracking_controller.ts`. Tests : `tracking.spec.ts` (u trafiqué / signature absente → 404, lien signé valide → 302), `delivery_token_service.spec.ts`, `tracking_content_rewriter.spec.ts`.
 
-**Restant non corrigé** (choix volontaires) :
-- **#7 CSP** (à tester avec Vite/Inertia avant activation), **#8 politique mot de passe**, **#9 en-têtes complémentaires**.
+**Non traités (décision du 2026-10-07)** : **#7 CSP**, **#8 politique de mot de passe**, **#9 en-têtes complémentaires** — risque accepté, à rouvrir au besoin.
+
+**Points résiduels** : pas de limitation de `/invitations/:token/accept` (évoquée en #1) ; pas d'en-tête `List-Unsubscribe` (#6) ; pas de vérification de signature HMAC propre à chaque fournisseur (#5) ; taille du payload webhook non bornée (#4). **Déploiement** : exécuter la migration `webhook_secret` et reconfigurer l'URL du webhook chez le fournisseur ; les liens de clic des emails déjà envoyés ne redirigent plus (#3).
 
 ---
 
