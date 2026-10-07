@@ -56,6 +56,18 @@ export default class UnsubscribeTokenService {
   }
 
   /**
+   * Read-only lookup: same as `resolve()` but does NOT stamp `usedAt`. Used
+   * by the GET confirmation page, which must stay side-effect free so link
+   * scanners/prefetchers can't consume the token.
+   */
+  async peek(token: string): Promise<Contact | null> {
+    const record = await UnsubscribeToken.query().where('token', token).first()
+    if (!record) return null
+
+    return Contact.query().where('id', record.contactId).first()
+  }
+
+  /**
    * Resolves a token to its `Contact` — never throws for an unknown token
    * (docs/plans/17-unsubscribe.md § Services: "jamais d'erreur levée pour
    * un token inconnu"), the caller treats `null` as the generic

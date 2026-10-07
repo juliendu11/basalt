@@ -19,7 +19,7 @@
 | 3 | Open redirect sur `/track/click` (indépendant de la validité du token) | **Moyen** | **Prod** | ✅ corrigé |
 | 4 | Endpoints publics non limités → flooding de la file de jobs (DoS) | **Moyen** | Code | ⚠️ partiel (webhook) |
 | 5 | Webhook SMTP sans vérification de signature | **Faible→Moyen** | Code (déjà noté) | ❌ |
-| 6 | Désinscription déclenchée en `GET` (prefetch / scanners) | **Faible→Moyen** | Code | ❌ |
+| 6 | Désinscription déclenchée en `GET` (prefetch / scanners) | **Faible→Moyen** | Code | ✅ corrigé |
 | 7 | Content-Security-Policy désactivée | **Faible** | **Prod** | ❌ |
 | 8 | Politique de mot de passe faible (max 32, pas de complexité) | **Faible/Info** | Code | ❌ |
 | 9 | En-têtes `Referrer-Policy` / `Permissions-Policy` absents | **Info** | **Prod** | ❌ |
@@ -163,6 +163,8 @@ N'importe qui peut `POST /webhooks/smtp/:connectorId` avec un `providerMessageId
 
 **Remédiation** : page de confirmation en `GET` + action réelle en `POST` (bouton), et exposer l'en-tête `List-Unsubscribe-Post: List-Unsubscribe=One-Click` avec un endpoint `POST` dédié (à exempter de CSRF explicitement).
 
+**✅ Corrigé** : `GET /unsubscribe/:token` n'affiche plus qu'une page de confirmation (lookup `peek()` en lecture seule, `usedAt` non touché) ; la désinscription est `POST /unsubscribe/:token` (bouton, CSRF actif, throttle). **Reste** : l'en-tête `List-Unsubscribe` / `List-Unsubscribe-Post` (RFC 8058) n'est pas émis par l'application aujourd'hui ; s'il est ajouté, le `POST` devra être exempté de CSRF dans `config/shield.ts`.
+
 ---
 
 ## 7. Content-Security-Policy désactivée — **Faible** (confirmé en prod)
@@ -227,7 +229,7 @@ En prod on observe bien `Strict-Transport-Security`, `X-Content-Type-Options: no
 **#3 désormais totalement fermé (signature HMAC de `u`)** : chaque lien de clic porte un paramètre `s = HMAC(APP_KEY, token + "\n" + url)` apposé par `TrackingContentRewriter`. `/track/click` ne redirige (et n'enregistre le clic) que si `token` valide **ET** `u` http(s) **ET** `s` vérifie la paire — une URL `u` trafiquée invalide la signature. **Sans repli** : les emails déjà envoyés (liens sans `s`) ne redirigent plus — compromis accepté. Fichiers : `app/services/tracking/delivery_token_service.ts` (`signUrl`/`verifyUrl`, comparaison constant-time), `app/services/tracking/tracking_content_rewriter.ts`, `app/controllers/tracking/tracking_controller.ts`. Tests : `tracking.spec.ts` (u trafiqué / signature absente → 404, lien signé valide → 302), `delivery_token_service.spec.ts`, `tracking_content_rewriter.spec.ts`.
 
 **Restant non corrigé** (choix volontaires) :
-- **#5 signature webhook**, **#6 désinscription en POST** (décision produit : change le front + l'en-tête `List-Unsubscribe-Post` et casserait ~6 tests qui supposent une désinscription en GET), **#7 CSP** (à tester avec Vite/Inertia avant activation), **#8 politique mot de passe**, **#9 en-têtes complémentaires**.
+- **#5 signature webhook**, **#7 CSP** (à tester avec Vite/Inertia avant activation), **#8 politique mot de passe**, **#9 en-têtes complémentaires**.
 
 ---
 

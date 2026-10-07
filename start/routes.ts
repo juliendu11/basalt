@@ -38,10 +38,14 @@ router
  * Also deliberately PUBLIC (docs/plans/17-unsubscribe.md § Routes) — a
  * global route, not nested under an organization/project prefix, since the
  * visitor clicking this link is unauthenticated and doesn't know either.
- * GET-only, so no CSRF exemption is needed (`config/shield.ts`'s CSRF check
- * only guards the state-changing verbs listed in its `methods` array).
+ * GET only shows a confirmation page; the state change is a POST submitted
+ * from that page (it carries the XSRF cookie, so CSRF stays enabled).
  */
 router.get('/unsubscribe/:token', [controllers.Unsubscribe, 'show']).as('unsubscribe.show')
+router
+  .post('/unsubscribe/:token', [controllers.Unsubscribe, 'confirm'])
+  .as('unsubscribe.confirm')
+  .use(webhookThrottle)
 
 router
   .group(() => {
