@@ -1,12 +1,14 @@
+import { inject } from '@adonisjs/core'
 import User from '#models/user'
 import db from '@adonisjs/lucid/services/db'
 import { signupValidator } from '#validators/user'
 import OrganizationService from '#services/organizations/organization_service'
 import type { HttpContext } from '@adonisjs/core/http'
 
-const organizationService = new OrganizationService()
-
+@inject()
 export default class NewAccountController {
+  constructor(protected organizationService: OrganizationService) {}
+
   async create({ inertia }: HttpContext) {
     return inertia.render('auth/signup', {})
   }
@@ -26,7 +28,7 @@ export default class NewAccountController {
       const defaultOrganizationName = newUser.fullName
         ? `${newUser.fullName}'s organization`
         : `${newUser.email.split('@')[0]}'s organization`
-      const newOrganization = await organizationService.create(
+      const newOrganization = await this.organizationService.create(
         newUser,
         { name: defaultOrganizationName },
         trx

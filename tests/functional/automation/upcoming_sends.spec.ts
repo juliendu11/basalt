@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
@@ -18,10 +19,10 @@ import type { BuilderEdge, BuilderNode } from '#types/campaign_graph'
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const segmentService = new SegmentService()
-const campaignService = new CampaignService()
-const builderService = new CampaignBuilderService()
-const emailService = new EmailService()
+const segmentService = await app.container.make(SegmentService)
+const campaignService = await app.container.make(CampaignService)
+const builderService = await app.container.make(CampaignBuilderService)
+const emailService = await app.container.make(EmailService)
 const upcomingSends = new UpcomingSendsService()
 
 async function createFixtures() {

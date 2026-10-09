@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Campaign from '#models/campaign'
 import CampaignVersion from '#models/campaign_version'
@@ -15,9 +16,10 @@ import CampaignVersionTransformer from '#transformers/campaign_version_transform
 import ProjectTransformer from '#transformers/project_transformer'
 import type { BuilderEdge, BuilderNode } from '#types/campaign_graph'
 
-const campaignBuilderService = new CampaignBuilderService()
-
+@inject()
 export default class CampaignBuildersController {
+  constructor(protected campaignBuilderService: CampaignBuilderService) {}
+
   /**
    * Read-only load for display: shows the current draft if one exists,
    * otherwise previews the published version's graph — no version is
@@ -130,7 +132,7 @@ export default class CampaignBuildersController {
       const publishedVersion = await CampaignVersion.query()
         .where('id', campaign.publishedVersionId)
         .firstOrFail()
-      draftVersion = await campaignBuilderService.cloneVersion(publishedVersion, auth.user!)
+      draftVersion = await this.campaignBuilderService.cloneVersion(publishedVersion, auth.user!)
     } else {
       draftVersion = await CampaignVersion.query()
         .where('campaignId', campaign.id)
@@ -141,7 +143,7 @@ export default class CampaignBuildersController {
     const nodes = request.input('nodes', []) as BuilderNode[]
     const edges = request.input('edges', []) as BuilderEdge[]
 
-    await campaignBuilderService.saveDraft(draftVersion, { nodes, edges })
+    await this.campaignBuilderService.saveDraft(draftVersion, { nodes, edges })
 
     return response.json({ saved: true })
   }

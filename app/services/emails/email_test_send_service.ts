@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import nodemailer from 'nodemailer'
 import type Project from '#models/project'
 import type Email from '#models/email'
@@ -11,8 +12,6 @@ import {
 } from '#services/emails/variable_renderer'
 
 const SEND_TIMEOUT_MS = 15_000
-
-const smtpConnectorService = new SmtpConnectorService()
 
 /** Raised when there's no usable connector to send the test through — never a send/SMTP failure. */
 export class NoSmtpConnectorError extends Error {
@@ -32,7 +31,10 @@ export class NoSmtpConnectorError extends Error {
  * variable data (no real `Contact` exists to send to) — so what arrives in
  * the inbox matches what the Preview modal already showed.
  */
+@inject()
 export default class EmailTestSendService {
+  constructor(protected smtpConnectorService: SmtpConnectorService) {}
+
   async send(project: Project, email: Email, testEmailAddress: string): Promise<void> {
     const connector = await SmtpConnector.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -42,7 +44,7 @@ export default class EmailTestSendService {
 
     if (!connector) throw new NoSmtpConnectorError()
 
-    const decrypted = smtpConnectorService.decryptedConfig(connector)
+    const decrypted = this.smtpConnectorService.decryptedConfig(connector)
     const transport = nodemailer.createTransport({
       host: decrypted.host,
       port: decrypted.port,

@@ -1,6 +1,7 @@
+import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type SegmentMembershipAdded from '#events/segment_membership_added'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 
 /**
  * Bridges Segments (Phase 7) to Campaign Enrollment (docs/plans/13-campaign-enrollment.md
@@ -16,7 +17,10 @@ import queueDispatcher from '#services/jobs/queue_dispatcher'
  * raw SQL regardless, so this follows suit rather than special-casing
  * "trusted" values.
  */
+@inject()
 export default class EnrollContactsOnSegmentMembershipAdded {
+  constructor(protected queueDispatcher: QueueDispatcher) {}
+
   async handle(event: SegmentMembershipAdded) {
     if (event.contactIds.length === 0) return
 
@@ -34,7 +38,7 @@ export default class EnrollContactsOnSegmentMembershipAdded {
       .select('campaigns.id as campaignId')
 
     for (const row of matchingCampaigns) {
-      await queueDispatcher.dispatch('campaign-engine', 'campaign.enroll_batch', {
+      await this.queueDispatcher.dispatch('campaign-engine', 'campaign.enroll_batch', {
         campaignId: row.campaignId,
         segmentId: event.segmentId,
         contactIds: event.contactIds,

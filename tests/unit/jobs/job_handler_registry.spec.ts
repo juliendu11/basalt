@@ -1,7 +1,9 @@
 import { test } from '@japa/runner'
-import jobHandlerRegistry from '#services/jobs/job_handler_registry'
+import JobHandlerRegistry from '#services/jobs/job_handler_registry'
 
 test.group('JobHandlerRegistry', () => {
+  const jobHandlerRegistry = new JobHandlerRegistry()
+
   test('resolves a registered handler', async ({ assert }) => {
     let called = false
     jobHandlerRegistry.register('tracking', 'test.unit.resolve', async () => {

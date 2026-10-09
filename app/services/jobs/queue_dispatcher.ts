@@ -1,6 +1,7 @@
 import type { Job, JobsOptions } from 'bullmq'
 import logger from '@adonisjs/core/services/logger'
-import queueRegistry from '#services/jobs/queue_registry'
+import { inject } from '@adonisjs/core'
+import QueueRegistry from '#services/jobs/queue_registry'
 import type { QueueName } from '#config/queue'
 
 export interface DispatchOptions {
@@ -24,15 +25,18 @@ export interface DispatchOptions {
  *
  * See docs/plans/14-jobs-and-queues.md.
  */
-class QueueDispatcher {
+@inject()
+export default class QueueDispatcher {
+  constructor(protected queueRegistry: QueueRegistry) {}
+
   async dispatch<Payload extends Record<string, unknown>>(
     queueName: QueueName,
     jobName: string,
     payload: Payload,
     options: DispatchOptions = {}
   ): Promise<Job<Payload>> {
-    const queue = queueRegistry.getQueue(queueName)
-    const defaults = queueRegistry.defaultsFor(queueName)
+    const queue = this.queueRegistry.getQueue(queueName)
+    const defaults = this.queueRegistry.defaultsFor(queueName)
 
     const jobOptions: JobsOptions = {
       attempts: defaults.attempts,
@@ -54,5 +58,3 @@ class QueueDispatcher {
     }
   }
 }
-
-export default new QueueDispatcher()

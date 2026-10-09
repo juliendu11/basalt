@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import { UserFactory } from '#database/factories/user_factory'
@@ -31,9 +32,9 @@ const organizationService = new OrganizationService()
 const membershipService = new OrganizationMembershipService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const campaignService = new CampaignService()
-const builderService = new CampaignBuilderService()
-const segmentService = new SegmentService()
+const campaignService = await app.container.make(CampaignService)
+const builderService = await app.container.make(CampaignBuilderService)
+const segmentService = await app.container.make(SegmentService)
 
 async function createProject() {
   const owner = await UserFactory.create()

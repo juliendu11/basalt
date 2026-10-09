@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
@@ -13,8 +14,8 @@ import SentEmailsService from '#services/emails/sent_emails_service'
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const campaignService = new CampaignService()
-const emailService = new EmailService()
+const campaignService = await app.container.make(CampaignService)
+const emailService = await app.container.make(EmailService)
 const sentEmails = new SentEmailsService()
 
 async function createFixtures() {

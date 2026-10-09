@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
@@ -26,10 +27,11 @@ import type { BuilderNode } from '#types/campaign_graph'
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const segmentService = new SegmentService()
-const campaignService = new CampaignService()
+const sendEmailExecutor = await app.container.make(SendEmailExecutor)
+const segmentService = await app.container.make(SegmentService)
+const campaignService = await app.container.make(CampaignService)
 const smtpConnectorService = new SmtpConnectorService()
-const emailService = new EmailService()
+const emailService = await app.container.make(EmailService)
 
 async function createFixtures() {
   const owner = await UserFactory.create()
@@ -349,7 +351,7 @@ test.group('SendEmailExecutor', () => {
     await contactService.changeStatus(contact, 'unsubscribed')
     const node = await createNode(version.id, 'action', 'send_email', { emailId: 1 })
 
-    const result = await new SendEmailExecutor().execute(execution, node, contact)
+    const result = await sendEmailExecutor.execute(execution, node, contact)
 
     assert.equal(result.outcome, 'continue')
     assert.include(result.note ?? '', 'not subscribed')
@@ -389,7 +391,7 @@ test.group('SendEmailExecutor', () => {
       replyTo: email.replyTo,
     })
 
-    const result = await new SendEmailExecutor().execute(execution, node, contact)
+    const result = await sendEmailExecutor.execute(execution, node, contact)
 
     assert.equal(result.outcome, 'continue')
     const delivery = await db.from('email_deliveries').where('contact_id', contact.id).firstOrFail()
@@ -428,8 +430,8 @@ test.group('SendEmailExecutor', () => {
       replyTo: email.replyTo,
     })
 
-    await new SendEmailExecutor().execute(execution, node, contact)
-    await new SendEmailExecutor().execute(execution, node, contact)
+    await sendEmailExecutor.execute(execution, node, contact)
+    await sendEmailExecutor.execute(execution, node, contact)
 
     const deliveries = await db.from('email_deliveries').where('contact_id', contact.id)
     assert.lengthOf(deliveries, 1)
@@ -466,7 +468,7 @@ test.group('SendEmailExecutor', () => {
       replyTo: email.replyTo,
     })
 
-    await assert.rejects(() => new SendEmailExecutor().execute(execution, node, contact))
+    await assert.rejects(() => sendEmailExecutor.execute(execution, node, contact))
 
     const delivery = await db.from('email_deliveries').where('contact_id', contact.id).firstOrFail()
     assert.equal(delivery.status, 'processing')
@@ -513,7 +515,7 @@ test.group('SendEmailExecutor', () => {
       replyTo: email.replyTo,
     })
 
-    await new SendEmailExecutor().execute(execution, node, contact)
+    await sendEmailExecutor.execute(execution, node, contact)
 
     const list = (await fetch('http://localhost:1080/messages').then((r) => r.json())) as Array<{
       id: number

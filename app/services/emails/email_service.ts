@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type User from '#models/user'
 import type Project from '#models/project'
 import Email from '#models/email'
@@ -52,7 +53,10 @@ export interface EmailFromLayoutPayload {
   textContent?: string | null
 }
 
+@inject()
 export default class EmailService {
+  constructor(protected googleTranslateService: GoogleTranslateService) {}
+
   async create(project: Project, actor: User, payload: EmailPayload): Promise<Email> {
     const email = await Email.create({
       projectId: project.id,
@@ -257,8 +261,8 @@ export default class EmailService {
    * and is never copied here, same as `createFromLayout()`.
    */
   async translate(email: Email, actor: User, targetLanguage: string): Promise<Email> {
-    const translateService = new GoogleTranslateService()
-    const translate: BatchTranslate = (texts) => translateService.translate(texts, targetLanguage)
+    const translate: BatchTranslate = (texts) =>
+      this.googleTranslateService.translate(texts, targetLanguage)
 
     const isLayoutLinked = email.emailLayoutId !== null
 

@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import type Project from '#models/project'
@@ -51,8 +52,6 @@ export interface NodePerformance {
   clickRate: number
 }
 
-const aggregationService = new StatisticsAggregationService()
-
 /**
  * `period` preset -> concrete `[from, to]` ISO-date range, `to` inclusive.
  * `custom` is validated by the controller (capped at ~1 year per the plan's
@@ -89,13 +88,16 @@ export function resolvePeriod(preset: PeriodPreset, custom?: { from: string; to:
  * low-volume days (docs/plans/18-statistics-dashboard.md § Domain
  * concepts, explicit on this point).
  */
+@inject()
 export default class StatisticsService {
+  constructor(protected aggregationService: StatisticsAggregationService) {}
+
   async projectSummary(project: Project, period: Period): Promise<ProjectSummary> {
     const { pastDays, includesToday } = splitPeriod(period)
 
     const pastTotals = await this.#sumProjectDailyStats(project.id, pastDays)
     const todayCounts = includesToday
-      ? await aggregationService.projectCounts(project.id, DateTime.now().toISODate()!)
+      ? await this.aggregationService.projectCounts(project.id, DateTime.now().toISODate()!)
       : emptyCounts()
 
     const totals = sumCounts(pastTotals.counts, todayCounts)
@@ -122,7 +124,7 @@ export default class StatisticsService {
 
     const pastTotals = await this.#sumCampaignDailyStats(campaign.id, pastDays)
     const todayCounts = includesToday
-      ? await aggregationService.campaignCounts(
+      ? await this.aggregationService.campaignCounts(
           campaign.projectId,
           campaign.id,
           DateTime.now().toISODate()!

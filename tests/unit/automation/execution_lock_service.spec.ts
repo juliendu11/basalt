@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
@@ -11,7 +12,7 @@ import ExecutionLockService from '#services/automation/execution_lock_service'
 
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
-const campaignService = new CampaignService()
+const campaignService = await app.container.make(CampaignService)
 const contactService = new ContactService()
 const lockService = new ExecutionLockService()
 

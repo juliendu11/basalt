@@ -1,6 +1,7 @@
+import { inject } from '@adonisjs/core'
 import type Project from '#models/project'
 import Segment from '#models/segment'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 import {
   isConditionGroup,
   type SegmentDefinition,
@@ -13,7 +14,10 @@ export interface SegmentPayload {
   definition: SegmentDefinition
 }
 
+@inject()
 export default class SegmentService {
+  constructor(protected queueDispatcher: QueueDispatcher) {}
+
   /**
    * Creates or updates a segment (pass an existing `segment` to update it in
    * place) and always dispatches an asynchronous full recompute afterward —
@@ -33,7 +37,7 @@ export default class SegmentService {
     })
     await target.save()
 
-    await queueDispatcher.dispatch('segments', 'segment.recompute', {
+    await this.queueDispatcher.dispatch('segments', 'segment.recompute', {
       segmentId: target.id,
       mode: 'full',
     })

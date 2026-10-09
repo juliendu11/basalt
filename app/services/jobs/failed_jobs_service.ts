@@ -1,4 +1,5 @@
-import queueRegistry from '#services/jobs/queue_registry'
+import { inject } from '@adonisjs/core'
+import QueueRegistry from '#services/jobs/queue_registry'
 import { queueNames, type QueueName } from '#config/queue'
 import EmailDelivery from '#models/email_delivery'
 import Segment from '#models/segment'
@@ -54,7 +55,10 @@ interface RawFailedJob {
  * Security note: verified every job payload registered across this codebase
  * (`start/jobs.ts`) — none carries a decrypted secret.
  */
+@inject()
 export default class FailedJobsService {
+  constructor(protected queueRegistry: QueueRegistry) {}
+
   /** Failed jobs belonging to `projectId` only, newest first. */
   async list(projectId: number, queueName?: QueueName): Promise<FailedJobEntry[]> {
     const names = queueName ? [queueName] : queueNames
@@ -62,7 +66,7 @@ export default class FailedJobsService {
     try {
       const perQueue = await Promise.all(
         names.map(async (name) => {
-          const queue = queueRegistry.getQueue(name)
+          const queue = this.queueRegistry.getQueue(name)
           const jobs = (await queue.getFailed()) as RawFailedJob[]
           return jobs.map((job) => ({ name, job }))
         })
@@ -88,7 +92,7 @@ export default class FailedJobsService {
    */
   async retry(projectId: number, queueName: QueueName, jobId: string): Promise<boolean> {
     try {
-      const queue = queueRegistry.getQueue(queueName)
+      const queue = this.queueRegistry.getQueue(queueName)
       const job = (await queue.getJob(jobId)) as RawFailedJob | undefined
       if (!job) return false
 

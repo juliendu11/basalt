@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Campaign from '#models/campaign'
 import CampaignVersion from '#models/campaign_version'
@@ -11,9 +12,10 @@ import CampaignVersionTransformer from '#transformers/campaign_version_transform
 import ProjectTransformer from '#transformers/project_transformer'
 import BusinessRuleViolation from '#exceptions/business_rule_violation'
 
-const campaignBuilderService = new CampaignBuilderService()
-
+@inject()
 export default class CampaignVersionsController {
+  constructor(protected campaignBuilderService: CampaignBuilderService) {}
+
   /** Read-only view of an archived/published version's graph (docs/plans/11-campaign-builder.md § Routes). */
   async show({ project, params, inertia }: HttpContext) {
     const campaign = await Campaign.query()
@@ -60,7 +62,7 @@ export default class CampaignVersionsController {
       throw new BusinessRuleViolation('This version is already the editable draft.')
     }
 
-    await campaignBuilderService.cloneVersion(sourceVersion, auth.user!)
+    await this.campaignBuilderService.cloneVersion(sourceVersion, auth.user!)
 
     session.flash('success', `Version #${sourceVersion.versionNumber} was restored as the draft.`)
     return response.redirect().toRoute('campaigns.builder.show', {
@@ -84,7 +86,7 @@ export default class CampaignVersionsController {
       .where('id', params.versionId)
       .firstOrFail()
 
-    await campaignBuilderService.deleteDraft(version)
+    await this.campaignBuilderService.deleteDraft(version)
 
     session.flash('success', `Version #${version.versionNumber} was deleted.`)
     return response.redirect().toRoute('campaigns.show', {

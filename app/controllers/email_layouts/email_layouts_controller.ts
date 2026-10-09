@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import EmailLayout from '#models/email_layout'
 import EmailLayoutPolicy from '#policies/email_layout_policy'
@@ -17,9 +18,10 @@ import {
   EXAMPLE_BODY_TEXT_CONTENT,
 } from '#services/emails/email_layout_composer'
 
-const emailLayoutService = new EmailLayoutService()
-
+@inject()
 export default class EmailLayoutsController {
+  constructor(protected emailLayoutService: EmailLayoutService) {}
+
   async index({ project, inertia }: HttpContext) {
     const layouts = await EmailLayout.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -43,7 +45,7 @@ export default class EmailLayoutsController {
     await bouncer.with(EmailLayoutPolicy).authorize('create', project)
 
     const payload = await request.validateUsing(createEmailLayoutValidator)
-    await emailLayoutService.create(project, auth.user!, payload)
+    await this.emailLayoutService.create(project, auth.user!, payload)
 
     session.flash('success', 'Layout created.')
     return response.redirect().toRoute('email_layouts.index', {
@@ -80,7 +82,7 @@ export default class EmailLayoutsController {
       .firstOrFail()
 
     const payload = await request.validateUsing(updateEmailLayoutValidator)
-    await emailLayoutService.update(layout, auth.user!, payload)
+    await this.emailLayoutService.update(layout, auth.user!, payload)
 
     session.flash('success', 'Layout updated.')
     return response.redirect().back()
@@ -94,7 +96,7 @@ export default class EmailLayoutsController {
       .where('id', params.layoutId)
       .firstOrFail()
 
-    await emailLayoutService.delete(layout, auth.user!)
+    await this.emailLayoutService.delete(layout, auth.user!)
 
     session.flash('success', 'Layout deleted.')
     return response.redirect().toRoute('email_layouts.index', {
@@ -111,7 +113,7 @@ export default class EmailLayoutsController {
       .where('id', params.layoutId)
       .firstOrFail()
 
-    await emailLayoutService.duplicate(layout, auth.user!)
+    await this.emailLayoutService.duplicate(layout, auth.user!)
 
     session.flash('success', 'Layout duplicated.')
     return response.redirect().toRoute('email_layouts.index', {

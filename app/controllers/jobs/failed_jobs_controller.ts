@@ -1,19 +1,21 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import ObservabilityPolicy from '#policies/observability_policy'
 import ProjectTransformer from '#transformers/project_transformer'
 import FailedJobsService, { FailedJobsUnavailableError } from '#services/jobs/failed_jobs_service'
 import { queueNames, type QueueName } from '#config/queue'
 
-const failedJobsService = new FailedJobsService()
-
+@inject()
 export default class FailedJobsController {
+  constructor(protected failedJobsService: FailedJobsService) {}
+
   async index({ project, request, bouncer, inertia }: HttpContext) {
     await bouncer.with(ObservabilityPolicy).authorize('viewFailedJobs', project)
 
     const queue = request.input('queue') as QueueName | undefined
 
     try {
-      const jobs = await failedJobsService.list(
+      const jobs = await this.failedJobsService.list(
         project.id,
         queue && queueNames.includes(queue) ? queue : undefined
       )
@@ -47,7 +49,7 @@ export default class FailedJobsController {
     }
 
     try {
-      const retried = await failedJobsService.retry(project.id, queue, params.jobId)
+      const retried = await this.failedJobsService.retry(project.id, queue, params.jobId)
       session.flash(retried ? 'success' : 'error', retried ? 'Job re-queued.' : 'Job not found.')
     } catch (error) {
       if (!(error instanceof FailedJobsUnavailableError)) throw error

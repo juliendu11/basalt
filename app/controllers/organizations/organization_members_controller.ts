@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import OrganizationMembership from '#models/organization_membership'
 import OrganizationInvitation from '#models/organization_invitation'
@@ -8,9 +9,10 @@ import OrganizationMembershipTransformer from '#transformers/organization_member
 import OrganizationInvitationTransformer from '#transformers/organization_invitation_transformer'
 import OrganizationTransformer from '#transformers/organization_transformer'
 
-const membershipService = new OrganizationMembershipService()
-
+@inject()
 export default class OrganizationMembersController {
+  constructor(protected membershipService: OrganizationMembershipService) {}
+
   async index({ organization, bouncer, inertia }: HttpContext) {
     await bouncer.with(OrganizationPolicy).authorize('manageMembers', organization)
 
@@ -42,7 +44,7 @@ export default class OrganizationMembersController {
       .firstOrFail()
 
     const payload = await request.validateUsing(changeRoleValidator)
-    await membershipService.changeRole(membership, payload.role)
+    await this.membershipService.changeRole(membership, payload.role)
 
     session.flash('success', 'Role updated.')
     return response.redirect().back()
@@ -56,7 +58,7 @@ export default class OrganizationMembersController {
       .where('organizationId', organization.id)
       .firstOrFail()
 
-    await membershipService.remove(membership, auth.user!)
+    await this.membershipService.remove(membership, auth.user!)
 
     session.flash('success', 'Member removed.')
     return response.redirect().back()
