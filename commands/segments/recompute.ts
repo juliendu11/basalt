@@ -1,8 +1,8 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import Segment from '#models/segment'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
-import queueRegistry from '#services/jobs/queue_registry'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueRegistry from '#services/jobs/queue_registry'
 
 /**
  * Enqueues a full recompute for one segment (`--segment`), every segment of
@@ -30,6 +30,9 @@ export default class Recompute extends BaseCommand {
   declare project?: string
 
   async run() {
+    const queueDispatcher = await this.app.container.make(QueueDispatcher)
+    const queueRegistry = await this.app.container.make(QueueRegistry)
+
     const segments = await this.#resolveSegments()
 
     for (const segment of segments) {

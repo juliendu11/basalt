@@ -1,11 +1,13 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import OrganizationInvitation from '#models/organization_invitation'
 import OrganizationMembershipService from '#services/organizations/organization_membership_service'
 import OrganizationInvitationTransformer from '#transformers/organization_invitation_transformer'
 
-const membershipService = new OrganizationMembershipService()
-
+@inject()
 export default class InvitationsController {
+  constructor(protected membershipService: OrganizationMembershipService) {}
+
   async show({ params, inertia }: HttpContext) {
     const invitation = await OrganizationInvitation.query()
       .where('token', params.token)
@@ -23,7 +25,7 @@ export default class InvitationsController {
     const invitation = await OrganizationInvitation.query().where('token', params.token).first()
 
     if (invitation) {
-      const membership = await membershipService.accept(invitation, auth.user!)
+      const membership = await this.membershipService.accept(invitation, auth.user!)
       session.put('organizationId', membership.organizationId)
       session.flash('success', 'You joined the organization.')
       return response.redirect().toRoute('organization_members.index', {
@@ -39,7 +41,7 @@ export default class InvitationsController {
     const invitation = await OrganizationInvitation.query().where('token', params.token).first()
 
     if (invitation) {
-      await membershipService.decline(invitation)
+      await this.membershipService.decline(invitation)
       session.flash('success', 'Invitation declined.')
     }
 

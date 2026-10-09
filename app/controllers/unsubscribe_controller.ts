@@ -1,17 +1,21 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Project from '#models/project'
 import UnsubscribeTokenService from '#services/unsubscribe/unsubscribe_token_service'
 import UnsubscribeService from '#services/unsubscribe/unsubscribe_service'
-
-const unsubscribeTokenService = new UnsubscribeTokenService()
-const unsubscribeService = new UnsubscribeService()
 
 /**
  * PUBLIC route (docs/plans/17-unsubscribe.md § Routes) — no session, no
  * organization/project context; entirely token-driven, same treatment as
  * `TrackingController` (docs/plans/16-email-tracking.md).
  */
+@inject()
 export default class UnsubscribeController {
+  constructor(
+    protected unsubscribeTokenService: UnsubscribeTokenService,
+    protected unsubscribeService: UnsubscribeService
+  ) {}
+
   /**
    * GET is side-effect free (docs/security-audit-2026-10-06.md § 6): mail
    * scanners, link prefetchers and proxies follow GET links, so it only
@@ -21,7 +25,7 @@ export default class UnsubscribeController {
    * token is valid (§ Security considerations).
    */
   async show({ params, inertia }: HttpContext) {
-    const contact = await unsubscribeTokenService.peek(params.token)
+    const contact = await this.unsubscribeTokenService.peek(params.token)
 
     if (!contact) {
       return inertia.render('unsubscribe/show', {
@@ -40,7 +44,7 @@ export default class UnsubscribeController {
   }
 
   async confirm({ params, inertia }: HttpContext) {
-    const contact = await unsubscribeTokenService.resolve(params.token)
+    const contact = await this.unsubscribeTokenService.resolve(params.token)
 
     if (!contact) {
       return inertia.render('unsubscribe/show', {
@@ -51,7 +55,7 @@ export default class UnsubscribeController {
     }
 
     const project = await Project.query().where('id', contact.projectId).firstOrFail()
-    await unsubscribeService.unsubscribe(contact, 'link')
+    await this.unsubscribeService.unsubscribe(contact, 'link')
 
     return inertia.render('unsubscribe/show', {
       state: 'done',

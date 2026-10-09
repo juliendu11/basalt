@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
 import SmtpConnector from '#models/smtp_connector'
@@ -10,9 +11,10 @@ import {
 import SmtpConnectorTransformer from '#transformers/smtp_connector_transformer'
 import ProjectTransformer from '#transformers/project_transformer'
 
-const smtpConnectorService = new SmtpConnectorService()
-
+@inject()
 export default class SmtpConnectorsController {
+  constructor(protected smtpConnectorService: SmtpConnectorService) {}
+
   async index({ project, inertia }: HttpContext) {
     const connectors = await SmtpConnector.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -38,7 +40,7 @@ export default class SmtpConnectorsController {
     const payload = await request.validateUsing(createSmtpConnectorValidator, {
       meta: { projectId: project.id },
     })
-    await smtpConnectorService.create(project, auth.user!, payload)
+    await this.smtpConnectorService.create(project, auth.user!, payload)
 
     session.flash('success', 'SMTP connector created.')
     return response.redirect().toRoute('smtp_connectors.index', {
@@ -80,7 +82,7 @@ export default class SmtpConnectorsController {
     const payload = await request.validateUsing(updateSmtpConnectorValidator, {
       meta: { projectId: project.id, connectorId: connector.id },
     })
-    await smtpConnectorService.update(connector, auth.user!, payload)
+    await this.smtpConnectorService.update(connector, auth.user!, payload)
 
     session.flash('success', 'SMTP connector updated.')
     return response.redirect().toRoute('smtp_connectors.index', {
@@ -97,7 +99,7 @@ export default class SmtpConnectorsController {
       .where('id', params.connectorId)
       .firstOrFail()
 
-    await smtpConnectorService.delete(connector, auth.user!)
+    await this.smtpConnectorService.delete(connector, auth.user!)
 
     session.flash('success', 'SMTP connector deleted.')
     return response.redirect().toRoute('smtp_connectors.index', {
@@ -114,7 +116,7 @@ export default class SmtpConnectorsController {
       .where('id', params.connectorId)
       .firstOrFail()
 
-    await smtpConnectorService.setDefault(connector, auth.user!)
+    await this.smtpConnectorService.setDefault(connector, auth.user!)
 
     session.flash('success', `${connector.name} is now the default connector.`)
     return response.redirect().back()
@@ -128,7 +130,7 @@ export default class SmtpConnectorsController {
       .where('id', params.connectorId)
       .firstOrFail()
 
-    await smtpConnectorService.toggleEnabled(connector, auth.user!)
+    await this.smtpConnectorService.toggleEnabled(connector, auth.user!)
 
     session.flash(
       'success',
@@ -152,7 +154,7 @@ export default class SmtpConnectorsController {
       .where('id', params.connectorId)
       .firstOrFail()
 
-    await smtpConnectorService.regenerateWebhookSecret(connector, auth.user!)
+    await this.smtpConnectorService.regenerateWebhookSecret(connector, auth.user!)
 
     session.flash(
       'success',

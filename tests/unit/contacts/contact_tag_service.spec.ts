@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -5,7 +6,9 @@ import ProjectService from '#services/projects/project_service'
 import ContactService from '#services/contacts/contact_service'
 import ContactTagService from '#services/contacts/contact_tag_service'
 import Segment from '#models/segment'
-import queueRegistry from '#services/jobs/queue_registry'
+import QueueRegistry from '#services/jobs/queue_registry'
+
+const queueRegistry = await app.container.make(QueueRegistry)
 
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()

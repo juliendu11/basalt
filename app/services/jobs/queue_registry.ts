@@ -9,7 +9,7 @@ import { queueConnection, queueDefaults, type QueueName } from '#config/queue'
  *
  * See docs/plans/14-jobs-and-queues.md.
  */
-class QueueRegistry {
+export default class QueueRegistry {
   #queues = new Map<QueueName, Queue>()
 
   getQueue(name: QueueName): Queue {
@@ -42,5 +42,3 @@ class QueueRegistry {
     await Promise.all([...this.#queues.values()].map((queue) => queue.close()))
   }
 }
-
-export default new QueueRegistry()

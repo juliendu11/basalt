@@ -12,11 +12,11 @@ export type JobHandler<Payload = any> = (payload: Payload, job: Job<Payload>) =>
  *
  * See docs/plans/14-jobs-and-queues.md.
  */
-class JobHandlerRegistry {
+export default class JobHandlerRegistry {
   #handlers = new Map<string, JobHandler>()
 
   register<Payload>(queueName: QueueName, jobName: string, handler: JobHandler<Payload>) {
-    const key = JobHandlerRegistry.#key(queueName, jobName)
+    const key = this.#key(queueName, jobName)
 
     if (this.#handlers.has(key)) {
       throw new NonRetryableError(`A handler is already registered for "${key}"`)
@@ -26,7 +26,7 @@ class JobHandlerRegistry {
   }
 
   resolve(queueName: QueueName, jobName: string): JobHandler {
-    const handler = this.#handlers.get(JobHandlerRegistry.#key(queueName, jobName))
+    const handler = this.#handlers.get(this.#key(queueName, jobName))
 
     if (!handler) {
       throw new NonRetryableError(
@@ -37,9 +37,7 @@ class JobHandlerRegistry {
     return handler
   }
 
-  static #key(queueName: QueueName, jobName: string) {
+  #key(queueName: QueueName, jobName: string) {
     return `${queueName}:${jobName}`
   }
 }
-
-export default new JobHandlerRegistry()

@@ -11,12 +11,15 @@
 |
 */
 
-import jobHandlerRegistry from '#services/jobs/job_handler_registry'
+import app from '@adonisjs/core/services/app'
+import JobHandlerRegistry from '#services/jobs/job_handler_registry'
 import { recomputeSegmentJob } from '#services/segments/segment_recompute_service'
 import { advanceExecutionJob } from '#services/automation/campaign_engine_service'
 import { enrollBatchJob } from '#services/campaigns/campaign_enrollment_service'
 import { processTrackingEventJob } from '#services/tracking/tracking_event_service'
 import { aggregateDailyStatsJob } from '#services/statistics/statistics_aggregation_service'
+
+const jobHandlerRegistry = await app.container.make(JobHandlerRegistry)
 
 jobHandlerRegistry.register('segments', 'segment.recompute', recomputeSegmentJob)
 jobHandlerRegistry.register('campaign-engine', 'campaign-engine.advance', advanceExecutionJob)

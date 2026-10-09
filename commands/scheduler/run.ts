@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import { BaseCommand } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
-import scheduledTaskRegistry from '#services/jobs/scheduled_task_registry'
+import ScheduledTaskRegistry from '#services/jobs/scheduled_task_registry'
 
 const TICK_INTERVAL_MS = 15_000
 
@@ -23,10 +23,12 @@ export default class Run extends BaseCommand {
   }
 
   #stopped = false
+  #scheduledTaskRegistry!: ScheduledTaskRegistry
   #resolveWait?: () => void
 
   async run() {
-    const taskCount = scheduledTaskRegistry.list().length
+    this.#scheduledTaskRegistry = await this.app.container.make(ScheduledTaskRegistry)
+    const taskCount = this.#scheduledTaskRegistry.list().length
     this.logger.info(`Scheduler started (${taskCount} task(s) registered)`)
 
     this.app.terminating(async () => {
@@ -44,10 +46,10 @@ export default class Run extends BaseCommand {
   async #tick() {
     const now = DateTime.utc()
 
-    for (const task of scheduledTaskRegistry.list()) {
-      if (!scheduledTaskRegistry.isDue(task, now)) continue
+    for (const task of this.#scheduledTaskRegistry.list()) {
+      if (!this.#scheduledTaskRegistry.isDue(task, now)) continue
 
-      scheduledTaskRegistry.markRan(task, now)
+      this.#scheduledTaskRegistry.markRan(task, now)
       this.logger.info(`Running scheduled task "${task.name}"`)
 
       try {

@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -7,12 +8,14 @@ import Segment from '#models/segment'
 import ContactCreated from '#events/contact_created'
 import ContactUpdated from '#events/contact_updated'
 import RecomputeSegmentsOnContactChange from '#listeners/recompute_segments_on_contact_change'
-import queueRegistry from '#services/jobs/queue_registry'
+import QueueRegistry from '#services/jobs/queue_registry'
+
+const queueRegistry = await app.container.make(QueueRegistry)
 
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const listener = new RecomputeSegmentsOnContactChange()
+const listener = await app.container.make(RecomputeSegmentsOnContactChange)
 
 async function createProject() {
   const owner = await UserFactory.create()

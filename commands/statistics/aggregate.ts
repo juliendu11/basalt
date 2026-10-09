@@ -1,7 +1,7 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
-import queueRegistry from '#services/jobs/queue_registry'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueRegistry from '#services/jobs/queue_registry'
 
 /**
  * Manual catch-up for a failed/missed nightly aggregation
@@ -24,6 +24,9 @@ export default class Aggregate extends BaseCommand {
   declare date?: string
 
   async run() {
+    const queueDispatcher = await this.app.container.make(QueueDispatcher)
+    const queueRegistry = await this.app.container.make(QueueRegistry)
+
     await queueDispatcher.dispatch('statistics', 'statistics.aggregate_daily', {
       date: this.date,
     })

@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -14,9 +15,9 @@ import CampaignActivated from '#events/campaign_activated'
 const organizationService = new OrganizationService()
 const membershipService = new OrganizationMembershipService()
 const projectService = new ProjectService()
-const campaignService = new CampaignService()
-const builderService = new CampaignBuilderService()
-const segmentService = new SegmentService()
+const campaignService = await app.container.make(CampaignService)
+const builderService = await app.container.make(CampaignBuilderService)
+const segmentService = await app.container.make(SegmentService)
 const listener = new WriteAuditLog()
 
 test.group('WriteAuditLog', () => {

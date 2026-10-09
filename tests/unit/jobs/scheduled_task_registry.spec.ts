@@ -1,18 +1,12 @@
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import ScheduledTaskRegistryClass from '#services/jobs/scheduled_task_registry'
-
-/**
- * The service exports a singleton, but each test needs a clean registry —
- * we import the class fresh isn't possible for a singleton export, so we
- * rely on unique task names per test instead of resetting shared state.
- */
+import ScheduledTaskRegistry from '#services/jobs/scheduled_task_registry'
 
 test.group('ScheduledTaskRegistry', () => {
   test('interval task is due immediately, then again only after the interval elapses', ({
     assert,
   }) => {
-    const registry = ScheduledTaskRegistryClass
+    const registry = new ScheduledTaskRegistry()
     registry.register('test.interval', { type: 'interval', everySeconds: 60 }, async () => {})
     const task = registry.list().find((t) => t.name === 'test.interval')!
 
@@ -25,7 +19,7 @@ test.group('ScheduledTaskRegistry', () => {
   })
 
   test('daily task runs once per UTC day at or after the configured time', ({ assert }) => {
-    const registry = ScheduledTaskRegistryClass
+    const registry = new ScheduledTaskRegistry()
     registry.register('test.daily', { type: 'daily', atUtc: '03:00' }, async () => {})
     const task = registry.list().find((t) => t.name === 'test.daily')!
 
@@ -43,7 +37,7 @@ test.group('ScheduledTaskRegistry', () => {
   })
 
   test('hourly task runs once per UTC hour at or after the configured minute', ({ assert }) => {
-    const registry = ScheduledTaskRegistryClass
+    const registry = new ScheduledTaskRegistry()
     registry.register('test.hourly', { type: 'hourly', atMinute: 15 }, async () => {})
     const task = registry.list().find((t) => t.name === 'test.hourly')!
 

@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import Project from '#models/project'
@@ -255,5 +256,6 @@ export interface AggregateDailyStatsPayload {
 /** Registered as the `statistics:statistics.aggregate_daily` job handler (start/jobs.ts). */
 export async function aggregateDailyStatsJob(payload: AggregateDailyStatsPayload): Promise<void> {
   const date = payload.date ? DateTime.fromISO(payload.date) : DateTime.now().minus({ days: 1 })
-  await new StatisticsAggregationService().aggregateDailyStats(date)
+  const service = await app.container.make(StatisticsAggregationService)
+  await service.aggregateDailyStats(date)
 }

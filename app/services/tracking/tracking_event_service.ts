@@ -1,3 +1,5 @@
+import app from '@adonisjs/core/services/app'
+import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
 import type { Job } from 'bullmq'
 import db from '@adonisjs/lucid/services/db'
@@ -20,8 +22,6 @@ export interface ProcessEventPayload {
   metadata?: Record<string, unknown>
 }
 
-const contactService = new ContactService()
-
 /**
  * `processEvent()` — the 5-step algorithm from
  * docs/plans/16-email-tracking.md § Backend architecture. Runs entirely
@@ -33,7 +33,10 @@ const contactService = new ContactService()
  * visible to the job's own retry mechanism, not to whoever actually
  * triggered the event.
  */
+@inject()
 export default class TrackingEventService {
+  constructor(protected contactService: ContactService) {}
+
   async processEvent(payload: ProcessEventPayload): Promise<void> {
     const delivery = await EmailDelivery.find(payload.deliveryId)
     if (!delivery) return // unknown/stale delivery id — silent no-op, never visible externally
@@ -126,7 +129,7 @@ export default class TrackingEventService {
     if (!contact) return
 
     try {
-      await contactService.changeStatus(contact, status)
+      await this.contactService.changeStatus(contact, status)
     } catch (error) {
       if (!(error instanceof BusinessRuleViolation)) throw error
       // Not a valid transition from the contact's current status — no-op.
@@ -139,6 +142,6 @@ export async function processTrackingEventJob(
   payload: ProcessEventPayload,
   _job: Job<ProcessEventPayload>
 ): Promise<void> {
-  const service = new TrackingEventService()
+  const service = await app.container.make(TrackingEventService)
   await service.processEvent(payload)
 }

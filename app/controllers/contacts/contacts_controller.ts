@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Contact from '#models/contact'
 import Tag from '#models/tag'
@@ -15,13 +16,16 @@ import ProjectTransformer from '#transformers/project_transformer'
 import CustomFieldDefinitionTransformer from '#transformers/custom_field_definition_transformer'
 import type { ContactStatus } from '#models/contact'
 
-const contactService = new ContactService()
-const contactQueryService = new ContactQueryService()
-const unsubscribeService = new UnsubscribeService()
-const upcomingSendsService = new UpcomingSendsService()
-const sentEmailsService = new SentEmailsService()
-
+@inject()
 export default class ContactsController {
+  constructor(
+    protected contactService: ContactService,
+    protected contactQueryService: ContactQueryService,
+    protected unsubscribeService: UnsubscribeService,
+    protected upcomingSendsService: UpcomingSendsService,
+    protected sentEmailsService: SentEmailsService
+  ) {}
+
   async index({ project, request, inertia, serialize }: HttpContext) {
     const filters = {
       search: request.input('search') || undefined,
@@ -30,7 +34,7 @@ export default class ContactsController {
       page: request.input('page') ? Number(request.input('page')) : undefined,
     }
 
-    const page = await contactQueryService.paginate(project, filters)
+    const page = await this.contactQueryService.paginate(project, filters)
     const contacts = await serialize(ContactTransformer.paginate(page.all(), page.getMeta()))
 
     const tags = await Tag.query()
@@ -64,7 +68,7 @@ export default class ContactsController {
     const payload = await request.validateUsing(createContactValidator, {
       meta: { projectId: project.id },
     })
-    const contact = await contactService.create(project, auth.user!, payload)
+    const contact = await this.contactService.create(project, auth.user!, payload)
 
     session.flash('success', `${contact.email} was added.`)
     return response.redirect().toRoute('contacts.show', {
@@ -87,8 +91,8 @@ export default class ContactsController {
     }
 
     const [upcomingSends, sentEmails] = await Promise.all([
-      upcomingSendsService.forContact(contact),
-      sentEmailsService.forContact(contact),
+      this.upcomingSendsService.forContact(contact),
+      this.sentEmailsService.forContact(contact),
     ])
 
     return inertia.render('contacts/show', {
@@ -154,7 +158,7 @@ export default class ContactsController {
     const payload = await request.validateUsing(updateContactValidator, {
       meta: { projectId: project.id, contactId: contact.id },
     })
-    await contactService.update(contact, auth.user!, payload)
+    await this.contactService.update(contact, auth.user!, payload)
 
     session.flash('success', 'Contact updated.')
     return response.redirect().back()
@@ -168,7 +172,7 @@ export default class ContactsController {
       .where('id', params.contactId)
       .firstOrFail()
 
-    await contactService.softDelete(contact, auth.user!)
+    await this.contactService.softDelete(contact, auth.user!)
 
     session.flash('success', 'Contact deleted.')
     return response.redirect().toRoute('contacts.index', {
@@ -185,7 +189,7 @@ export default class ContactsController {
       .where('id', params.contactId)
       .firstOrFail()
 
-    await unsubscribeService.unsubscribe(contact, 'manual')
+    await this.unsubscribeService.unsubscribe(contact, 'manual')
 
     session.flash('success', 'Contact unsubscribed.')
     return response.redirect().back()
@@ -199,7 +203,7 @@ export default class ContactsController {
       .where('id', params.contactId)
       .firstOrFail()
 
-    await unsubscribeService.resubscribe(contact, auth.user!.id)
+    await this.unsubscribeService.resubscribe(contact, auth.user!.id)
 
     session.flash('success', 'Contact resubscribed.')
     return response.redirect().back()

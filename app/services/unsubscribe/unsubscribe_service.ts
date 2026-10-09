@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
 import env from '#start/env'
 import type Contact from '#models/contact'
@@ -16,9 +17,6 @@ export interface UnsubscribeOptions {
   reason?: string
 }
 
-const contactService = new ContactService()
-const unsubscribeTokenService = new UnsubscribeTokenService()
-
 /**
  * docs/plans/17-unsubscribe.md § Services. `unsubscribe()`/`resubscribe()`
  * are the only writers of `contacts.status` transitions to/from
@@ -28,7 +26,13 @@ const unsubscribeTokenService = new UnsubscribeTokenService()
  * `ContactService.changeStatus()` directly, so the journal write and the
  * status change never drift apart.
  */
+@inject()
 export default class UnsubscribeService {
+  constructor(
+    protected contactService: ContactService,
+    protected unsubscribeTokenService: UnsubscribeTokenService
+  ) {}
+
   /**
    * Idempotent on `contact.status` (a repeat call when already
    * `unsubscribed` changes nothing) but NEVER on the journal — every call
@@ -42,7 +46,7 @@ export default class UnsubscribeService {
     options: UnsubscribeOptions = {}
   ): Promise<Contact> {
     if (contact.status !== 'unsubscribed') {
-      contact = await contactService.changeStatus(contact, 'unsubscribed')
+      contact = await this.contactService.changeStatus(contact, 'unsubscribed')
     }
 
     await ContactUnsubscribeEvent.create({
@@ -76,7 +80,7 @@ export default class UnsubscribeService {
    * does for the unsubscribe side.
    */
   async resubscribe(contact: Contact, actorUserId: number): Promise<Contact> {
-    const updated = await contactService.changeStatus(contact, 'subscribed')
+    const updated = await this.contactService.changeStatus(contact, 'subscribed')
 
     await ContactResubscribed.dispatch(updated.id, updated.projectId, actorUserId)
 
@@ -85,7 +89,7 @@ export default class UnsubscribeService {
 
   /** `${APP_URL}/unsubscribe/${token}` — the value substituted for `{{ unsubscribe_url }}`. */
   async urlFor(project: Project, contact: Contact): Promise<string> {
-    const token = await unsubscribeTokenService.getOrCreate(project, contact)
+    const token = await this.unsubscribeTokenService.getOrCreate(project, contact)
     return `${env.get('APP_URL')}/unsubscribe/${token.token}`
   }
 }
