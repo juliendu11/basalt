@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -15,11 +16,11 @@ import type { BuilderEdge, BuilderNode } from '#types/campaign_graph'
 
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
-const campaignService = new CampaignService()
-const emailService = new EmailService()
+const campaignService = await app.container.make(CampaignService)
+const emailService = await app.container.make(EmailService)
 const emailLayoutService = new EmailLayoutService()
-const segmentService = new SegmentService()
-const builderService = new CampaignBuilderService()
+const segmentService = await app.container.make(SegmentService)
+const builderService = await app.container.make(CampaignBuilderService)
 
 async function createProject() {
   const owner = await UserFactory.create()

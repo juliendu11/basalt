@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import SmtpConnector from '#models/smtp_connector'
 import SmtpConnectorPolicy from '#policies/smtp_connector_policy'
@@ -5,10 +6,13 @@ import SmtpConnectorService from '#services/smtp/smtp_connector_service'
 import SmtpConnectionTester from '#services/smtp/smtp_connection_tester'
 import { testSmtpConnectionValidator } from '#validators/smtp_connector'
 
-const smtpConnectorService = new SmtpConnectorService()
-const smtpConnectionTester = new SmtpConnectionTester()
-
+@inject()
 export default class SmtpConnectorTestsController {
+  constructor(
+    protected smtpConnectorService: SmtpConnectorService,
+    protected smtpConnectionTester: SmtpConnectionTester
+  ) {}
+
   /**
    * Tests connection parameters from the create/edit form without
    * persisting anything (docs/plans/07-smtp-connectors.md § Routes) — the
@@ -21,7 +25,7 @@ export default class SmtpConnectorTestsController {
     await bouncer.with(SmtpConnectorPolicy).authorize('create', project)
 
     const payload = await request.validateUsing(testSmtpConnectionValidator)
-    const result = await smtpConnectionTester.test(payload)
+    const result = await this.smtpConnectionTester.test(payload)
 
     return response.json(result)
   }
@@ -34,8 +38,10 @@ export default class SmtpConnectorTestsController {
       .where('id', params.connectorId)
       .firstOrFail()
 
-    const result = await smtpConnectionTester.test(smtpConnectorService.decryptedConfig(connector))
-    await smtpConnectorService.recordTestResult(connector, result)
+    const result = await this.smtpConnectionTester.test(
+      this.smtpConnectorService.decryptedConfig(connector)
+    )
+    await this.smtpConnectorService.recordTestResult(connector, result)
 
     return response.json(result)
   }

@@ -1,9 +1,8 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import type ApiKey from '#models/api_key'
 import ApiKeyService from '#services/api_keys/api_key_service'
-
-const apiKeyService = new ApiKeyService()
 
 const BEARER_PREFIX = 'Bearer '
 
@@ -15,12 +14,15 @@ const BEARER_PREFIX = 'Bearer '
  * so a key can't be pointed at a project it doesn't belong to by editing the
  * request path.
  */
+@inject()
 export default class ApiKeyAuthMiddleware {
+  constructor(protected apiKeyService: ApiKeyService) {}
+
   async handle(ctx: HttpContext, next: NextFn) {
     const header = ctx.request.header('authorization')
     const token = header?.startsWith(BEARER_PREFIX) ? header.slice(BEARER_PREFIX.length) : null
 
-    const apiKey = token ? await apiKeyService.verify(token) : null
+    const apiKey = token ? await this.apiKeyService.verify(token) : null
 
     if (!apiKey) {
       return ctx.response.status(401).send({ errors: [{ message: 'Invalid or missing API key' }] })

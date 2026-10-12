@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -11,9 +12,9 @@ import BusinessRuleViolation from '#exceptions/business_rule_violation'
 
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
-const campaignService = new CampaignService()
-const campaignBuilderService = new CampaignBuilderService()
-const segmentService = new SegmentService()
+const campaignService = await app.container.make(CampaignService)
+const campaignBuilderService = await app.container.make(CampaignBuilderService)
+const segmentService = await app.container.make(SegmentService)
 
 async function createProject() {
   const owner = await UserFactory.create()

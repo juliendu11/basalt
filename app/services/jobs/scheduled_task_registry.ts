@@ -26,7 +26,7 @@ interface ScheduledTask {
  * process is an accepted SPOF, a restart only delays (never loses) work
  * because every task it triggers is itself idempotent/rattrapable.
  */
-class ScheduledTaskRegistry {
+export default class ScheduledTaskRegistry {
   #tasks: ScheduledTask[] = []
 
   register(name: string, schedule: TaskSchedule, run: () => Promise<void>) {
@@ -64,5 +64,3 @@ class ScheduledTaskRegistry {
     task.lastRunHourKey = now.toFormat('yyyy-LL-dd-HH')
   }
 }
-
-export default new ScheduledTaskRegistry()

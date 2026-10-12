@@ -121,7 +121,8 @@ test.group('SegmentRecomputeService.full', () => {
       conditions: [{ field: 'country', operator: 'equals', value: 'France' }],
     })
 
-    const service = new SegmentRecomputeService(2)
+    const service = new SegmentRecomputeService()
+    service.batchSize = 2
     await service.full(segment)
 
     assert.deepEqual(await memberEmails(segment.id), [

@@ -2,8 +2,8 @@ import { Worker, UnrecoverableError, type Job } from 'bullmq'
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { queueConnection, queueNames, type QueueName } from '#config/queue'
-import queueRegistry from '#services/jobs/queue_registry'
-import jobHandlerRegistry from '#services/jobs/job_handler_registry'
+import QueueRegistry from '#services/jobs/queue_registry'
+import JobHandlerRegistry from '#services/jobs/job_handler_registry'
 import NonRetryableError from '#exceptions/non_retryable_error'
 
 /**
@@ -28,8 +28,13 @@ export default class Work extends BaseCommand {
   declare queue?: string
 
   #workers: Worker[] = []
+  #queueRegistry!: QueueRegistry
+  #jobHandlerRegistry!: JobHandlerRegistry
 
   async run() {
+    this.#queueRegistry = await this.app.container.make(QueueRegistry)
+    this.#jobHandlerRegistry = await this.app.container.make(JobHandlerRegistry)
+
     const names = this.#resolveQueueNames()
 
     if (!names) {
@@ -51,12 +56,12 @@ export default class Work extends BaseCommand {
   }
 
   #startWorker(name: QueueName) {
-    const defaults = queueRegistry.defaultsFor(name)
+    const defaults = this.#queueRegistry.defaultsFor(name)
 
     const worker = new Worker(
       name,
       async (job: Job) => {
-        const handler = jobHandlerRegistry.resolve(name, job.name)
+        const handler = this.#jobHandlerRegistry.resolve(name, job.name)
         try {
           await handler(job.data, job)
         } catch (error) {
@@ -78,7 +83,7 @@ export default class Work extends BaseCommand {
       {
         connection: queueConnection,
         concurrency: defaults.concurrency,
-        settings: { backoffStrategy: queueRegistry.backoffStrategyFor(name) },
+        settings: { backoffStrategy: this.#queueRegistry.backoffStrategyFor(name) },
       }
     )
 

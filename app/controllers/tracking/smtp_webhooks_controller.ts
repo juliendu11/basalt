@@ -1,11 +1,10 @@
+import { inject } from '@adonisjs/core'
 import { timingSafeEqual } from 'node:crypto'
 import type { HttpContext } from '@adonisjs/core/http'
 import SmtpConnector from '#models/smtp_connector'
 import EmailDelivery from '#models/email_delivery'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 import GenericSmtpWebhookAdapter from '#services/tracking/smtp_webhook_adapters/generic_adapter'
-
-const adapter = new GenericSmtpWebhookAdapter()
 
 function secretMatches(expected: string, provided: string): boolean {
   const a = Buffer.from(expected)
@@ -21,7 +20,13 @@ function secretMatches(expected: string, provided: string): boolean {
  * are also restricted to deliveries of the connector's own project, so a
  * connector's URL can never touch another tenant's data.
  */
+@inject()
 export default class SmtpWebhooksController {
+  constructor(
+    protected adapter: GenericSmtpWebhookAdapter,
+    protected queueDispatcher: QueueDispatcher
+  ) {}
+
   async handle({ params, request, response }: HttpContext) {
     const connector = await SmtpConnector.find(params.connectorId)
     if (!connector || !secretMatches(connector.webhookSecret, String(params.secret))) {
@@ -32,7 +37,7 @@ export default class SmtpWebhooksController {
     // give a provider a reason to disable the webhook after repeated
     // non-2xx responses (docs/plans/16-email-tracking.md § Validation).
     try {
-      const adapted = adapter.adapt(request.body())
+      const adapted = this.adapter.adapt(request.body())
       if (adapted) {
         const delivery = await EmailDelivery.query()
           .where('projectId', connector.projectId)
@@ -40,7 +45,7 @@ export default class SmtpWebhooksController {
           .first()
 
         if (delivery) {
-          await queueDispatcher.dispatch('tracking', 'tracking.process_event', {
+          await this.queueDispatcher.dispatch('tracking', 'tracking.process_event', {
             deliveryId: delivery.id,
             type: adapted.type,
             metadata: adapted.metadata,

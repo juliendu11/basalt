@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import EmailTemplate from '#models/email_template'
 import EmailTemplatePolicy from '#policies/email_template_policy'
@@ -14,9 +15,10 @@ import {
   exampleVariableContext,
 } from '#services/emails/variable_renderer'
 
-const emailTemplateService = new EmailTemplateService()
-
+@inject()
 export default class EmailTemplatesController {
+  constructor(protected emailTemplateService: EmailTemplateService) {}
+
   async index({ project, inertia }: HttpContext) {
     const templates = await EmailTemplate.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -40,7 +42,7 @@ export default class EmailTemplatesController {
     await bouncer.with(EmailTemplatePolicy).authorize('create', project)
 
     const payload = await request.validateUsing(createEmailTemplateValidator)
-    await emailTemplateService.create(project, auth.user!, payload)
+    await this.emailTemplateService.create(project, auth.user!, payload)
 
     session.flash('success', 'Template created.')
     return response.redirect().toRoute('email_templates.index', {
@@ -77,7 +79,7 @@ export default class EmailTemplatesController {
       .firstOrFail()
 
     const payload = await request.validateUsing(updateEmailTemplateValidator)
-    await emailTemplateService.update(template, auth.user!, payload)
+    await this.emailTemplateService.update(template, auth.user!, payload)
 
     session.flash('success', 'Template updated.')
     return response.redirect().back()
@@ -91,7 +93,7 @@ export default class EmailTemplatesController {
       .where('id', params.templateId)
       .firstOrFail()
 
-    await emailTemplateService.delete(template, auth.user!)
+    await this.emailTemplateService.delete(template, auth.user!)
 
     session.flash('success', 'Template deleted.')
     return response.redirect().toRoute('email_templates.index', {
@@ -108,7 +110,7 @@ export default class EmailTemplatesController {
       .where('id', params.templateId)
       .firstOrFail()
 
-    await emailTemplateService.duplicate(template, auth.user!)
+    await this.emailTemplateService.duplicate(template, auth.user!)
 
     session.flash('success', 'Template duplicated.')
     return response.redirect().toRoute('email_templates.index', {

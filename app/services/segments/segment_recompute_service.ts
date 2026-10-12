@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { DateTime } from 'luxon'
 import type { Job } from 'bullmq'
 import db from '@adonisjs/lucid/services/db'
@@ -16,16 +17,12 @@ const DEFAULT_BATCH_SIZE = 5000
 /**
  * Full and targeted recompute of `segment_contacts` membership
  * (docs/plans/06-segments.md § Backend architecture, ADR-003). `batchSize`
- * is a constructor parameter (not a hardcoded constant) purely so tests can
+ * is a public property (not a hardcoded constant) purely so tests can
  * force multiple batches at a small, fast scale rather than needing
  * thousands of rows to exercise the batching path.
  */
 export default class SegmentRecomputeService {
-  #batchSize: number
-
-  constructor(batchSize = DEFAULT_BATCH_SIZE) {
-    this.#batchSize = batchSize
-  }
+  batchSize = DEFAULT_BATCH_SIZE
 
   /**
    * Streams matching contact ids in bounded batches (keyset pagination on
@@ -62,7 +59,7 @@ export default class SegmentRecomputeService {
         const batch = await query
           .where('id', '>', lastId)
           .orderBy('id', 'asc')
-          .limit(this.#batchSize)
+          .limit(this.batchSize)
           .select('id')
 
         if (batch.length === 0) break
@@ -77,7 +74,7 @@ export default class SegmentRecomputeService {
           await SegmentMembershipAdded.dispatch(segment.id, newIds)
         }
 
-        if (batchIds.length < this.#batchSize) break
+        if (batchIds.length < this.batchSize) break
       }
 
       const removedIds = await this.#deleteStaleMembers(segment, customFieldTypes)
@@ -213,7 +210,7 @@ export async function recomputeSegmentJob(
   const segment = await Segment.find(payload.segmentId)
   if (!segment) return // the segment was deleted after this job was enqueued
 
-  const service = new SegmentRecomputeService()
+  const service = await app.container.make(SegmentRecomputeService)
 
   if (payload.mode === 'full') {
     await service.full(segment)

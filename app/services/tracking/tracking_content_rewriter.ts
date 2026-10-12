@@ -7,11 +7,10 @@ const BODY_CLOSE_TAG = /<\/body\s*>/i
 // content the app itself produced (frozen `campaign_nodes.config.htmlContent`,
 // docs/plans/decisions/ADR-004-campaign-versioning.md), not arbitrary
 // untrusted third-party HTML — a full parser would be disproportionate.
+import { inject } from '@adonisjs/core'
 import DeliveryTokenService from '#services/tracking/delivery_token_service'
 
 const ANCHOR_HREF_PATTERN = /(<a\b[^>]*\bhref\s*=\s*)(["'])(.*?)\2/gi
-
-const deliveryTokenService = new DeliveryTokenService()
 
 /**
  * Post-processes a frozen email's HTML just before sending
@@ -21,7 +20,10 @@ const deliveryTokenService = new DeliveryTokenService()
  * this, and only on a LOCAL COPY of the frozen content — the published
  * `campaign_nodes.config` itself is never mutated.
  */
+@inject()
 export default class TrackingContentRewriter {
+  constructor(protected deliveryTokenService: DeliveryTokenService) {}
+
   rewrite(html: string, deliveryToken: string, baseUrl: string): string {
     const withPixel = this.#insertPixel(html, deliveryToken, baseUrl)
     return this.#rewriteLinks(withPixel, deliveryToken, baseUrl)
@@ -46,7 +48,7 @@ export default class TrackingContentRewriter {
       // `s` is an HMAC over (token, href) so the recipient can't swap `u`
       // for another URL and still get a redirect (docs/security-audit-2026-10-06.md
       // § 3). base64url output is already URL-safe, so no extra encoding.
-      const signature = deliveryTokenService.signUrl(deliveryToken, href)
+      const signature = this.deliveryTokenService.signUrl(deliveryToken, href)
       const trackedUrl =
         `${baseUrl}/track/click/${deliveryToken}` + `?u=${encodeURIComponent(href)}&s=${signature}`
       return `${prefix}${quote}${trackedUrl}${quote}`

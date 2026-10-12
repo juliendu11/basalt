@@ -1,8 +1,9 @@
+import { inject } from '@adonisjs/core'
 import logger from '@adonisjs/core/services/logger'
 import CampaignNode from '#models/campaign_node'
 import SegmentContact from '#models/segment_contact'
 import type CampaignActivated from '#events/campaign_activated'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 
 const BATCH_SIZE = 5000
 
@@ -28,7 +29,10 @@ const BATCH_SIZE = 5000
  * (subscribed, not already active, reentry policy) apply, so nothing here
  * bypasses those rules.
  */
+@inject()
 export default class EnrollExistingSegmentMembersOnCampaignActivated {
+  constructor(protected queueDispatcher: QueueDispatcher) {}
+
   async handle(event: CampaignActivated) {
     const campaign = event.campaign
     if (!campaign.enrollExistingMembers) return
@@ -62,7 +66,7 @@ export default class EnrollExistingSegmentMembersOnCampaignActivated {
       if (batch.length === 0) break
       lastId = batch[batch.length - 1].id
 
-      await queueDispatcher.dispatch('campaign-engine', 'campaign.enroll_batch', {
+      await this.queueDispatcher.dispatch('campaign-engine', 'campaign.enroll_batch', {
         campaignId: campaign.id,
         segmentId,
         contactIds: batch.map((row) => row.contactId),

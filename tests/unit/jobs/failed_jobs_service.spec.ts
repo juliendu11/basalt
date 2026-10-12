@@ -1,8 +1,9 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { Worker } from 'bullmq'
 import { randomUUID } from 'node:crypto'
 import { queueConnection } from '#config/queue'
-import queueRegistry from '#services/jobs/queue_registry'
+import QueueRegistry from '#services/jobs/queue_registry'
 import FailedJobsService, { FailedJobsUnavailableError } from '#services/jobs/failed_jobs_service'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -10,7 +11,9 @@ import ProjectService from '#services/projects/project_service'
 import ContactService from '#services/contacts/contact_service'
 import EmailDelivery from '#models/email_delivery'
 
-const failedJobsService = new FailedJobsService()
+const queueRegistry = await app.container.make(QueueRegistry)
+
+const failedJobsService = await app.container.make(FailedJobsService)
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()

@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -11,7 +12,7 @@ import UnsubscribeToken from '#models/unsubscribe_token'
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const unsubscribeService = new UnsubscribeService()
+const unsubscribeService = await app.container.make(UnsubscribeService)
 const unsubscribeTokenService = new UnsubscribeTokenService()
 
 async function createFixtures() {

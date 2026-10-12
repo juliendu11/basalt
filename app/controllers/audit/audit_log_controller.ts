@@ -1,12 +1,14 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import ObservabilityPolicy from '#policies/observability_policy'
 import ProjectTransformer from '#transformers/project_transformer'
 import AuditLogTransformer from '#transformers/audit_log_transformer'
 import AuditLogService from '#services/audit/audit_log_service'
 
-const auditLogService = new AuditLogService()
-
+@inject()
 export default class AuditLogController {
+  constructor(protected auditLogService: AuditLogService) {}
+
   async index({ project, request, bouncer, inertia, serialize }: HttpContext) {
     await bouncer.with(ObservabilityPolicy).authorize('viewAuditLog', project)
 
@@ -18,7 +20,7 @@ export default class AuditLogController {
       page: request.input('page') ? Number(request.input('page')) : undefined,
     }
 
-    const page = await auditLogService.paginate(project, filters)
+    const page = await this.auditLogService.paginate(project, filters)
     const logs = await serialize(AuditLogTransformer.paginate(page.all(), page.getMeta()))
 
     return inertia.render('settings/audit_log/index', {

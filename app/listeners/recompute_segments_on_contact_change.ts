@@ -1,7 +1,8 @@
+import { inject } from '@adonisjs/core'
 import Segment from '#models/segment'
 import ContactCreated from '#events/contact_created'
 import type ContactUpdated from '#events/contact_updated'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 
 /**
  * Targeted, quasi-real-time recompute (docs/plans/06-segments.md § User
@@ -14,7 +15,10 @@ import queueDispatcher from '#services/jobs/queue_dispatcher'
  * effectively new), so every segment of the project is a candidate rather
  * than trying to enumerate which fields a fresh contact "changed".
  */
+@inject()
 export default class RecomputeSegmentsOnContactChange {
+  constructor(protected queueDispatcher: QueueDispatcher) {}
+
   async handle(event: ContactCreated | ContactUpdated) {
     const contact = event.contact
 
@@ -24,7 +28,7 @@ export default class RecomputeSegmentsOnContactChange {
         : await this.#segmentsReferencing(contact.projectId, event.changedFields)
 
     for (const segment of segments) {
-      await queueDispatcher.dispatch('segments', 'segment.recompute', {
+      await this.queueDispatcher.dispatch('segments', 'segment.recompute', {
         segmentId: segment.id,
         mode: 'targeted',
         contactId: contact.id,

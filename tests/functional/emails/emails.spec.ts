@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -14,7 +15,7 @@ const membershipService = new OrganizationMembershipService()
 const projectService = new ProjectService()
 const emailTemplateService = new EmailTemplateService()
 const emailLayoutService = new EmailLayoutService()
-const emailService = new EmailService()
+const emailService = await app.container.make(EmailService)
 const smtpConnectorService = new SmtpConnectorService()
 
 async function createProject() {

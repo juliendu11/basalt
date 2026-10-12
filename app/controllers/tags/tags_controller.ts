@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Tag from '#models/tag'
 import TagPolicy from '#policies/tag_policy'
@@ -6,9 +7,10 @@ import { createTagValidator, updateTagValidator } from '#validators/tag'
 import TagTransformer from '#transformers/tag_transformer'
 import ProjectTransformer from '#transformers/project_transformer'
 
-const tagService = new TagService()
-
+@inject()
 export default class TagsController {
+  constructor(protected tagService: TagService) {}
+
   async index({ project, inertia }: HttpContext) {
     const tags = await Tag.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -24,7 +26,7 @@ export default class TagsController {
     await bouncer.with(TagPolicy).authorize('create', project)
 
     const payload = await request.validateUsing(createTagValidator)
-    await tagService.create(project, payload)
+    await this.tagService.create(project, payload)
 
     session.flash('success', 'Tag created.')
     return response.redirect().toRoute('tags.index', {
@@ -61,7 +63,7 @@ export default class TagsController {
       .firstOrFail()
 
     const payload = await request.validateUsing(updateTagValidator)
-    await tagService.update(tag, payload)
+    await this.tagService.update(tag, payload)
 
     session.flash('success', 'Tag updated.')
     return response.redirect().toRoute('tags.index', {
@@ -78,7 +80,7 @@ export default class TagsController {
       .where('id', params.tagId)
       .firstOrFail()
 
-    await tagService.delete(tag)
+    await this.tagService.delete(tag)
 
     session.flash('success', 'Tag deleted.')
     return response.redirect().toRoute('tags.index', {

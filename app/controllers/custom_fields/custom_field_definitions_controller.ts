@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import CustomFieldDefinition from '#models/custom_field_definition'
 import CustomFieldDefinitionPolicy from '#policies/custom_field_definition_policy'
@@ -9,9 +10,10 @@ import {
 import CustomFieldDefinitionTransformer from '#transformers/custom_field_definition_transformer'
 import ProjectTransformer from '#transformers/project_transformer'
 
-const customFieldDefinitionService = new CustomFieldDefinitionService()
-
+@inject()
 export default class CustomFieldDefinitionsController {
+  constructor(protected customFieldDefinitionService: CustomFieldDefinitionService) {}
+
   async index({ project, inertia }: HttpContext) {
     const definitions = await CustomFieldDefinition.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -37,7 +39,7 @@ export default class CustomFieldDefinitionsController {
     const payload = await request.validateUsing(createCustomFieldDefinitionValidator, {
       meta: { projectId: project.id },
     })
-    await customFieldDefinitionService.create(project, payload)
+    await this.customFieldDefinitionService.create(project, payload)
 
     session.flash('success', 'Custom field created.')
     return response.redirect().toRoute('custom_field_definitions.index', {
@@ -74,7 +76,7 @@ export default class CustomFieldDefinitionsController {
       .firstOrFail()
 
     const payload = await request.validateUsing(updateCustomFieldDefinitionValidator)
-    await customFieldDefinitionService.update(definition, payload.label)
+    await this.customFieldDefinitionService.update(definition, payload.label)
 
     session.flash('success', 'Custom field updated.')
     return response.redirect().toRoute('custom_field_definitions.index', {
@@ -91,7 +93,7 @@ export default class CustomFieldDefinitionsController {
       .where('id', params.customFieldDefinitionId)
       .firstOrFail()
 
-    await customFieldDefinitionService.delete(definition)
+    await this.customFieldDefinitionService.delete(definition)
 
     session.flash('success', 'Custom field deleted.')
     return response.redirect().toRoute('custom_field_definitions.index', {

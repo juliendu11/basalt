@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
 import { UserFactory } from '#database/factories/user_factory'
@@ -12,7 +13,7 @@ import Contact from '#models/contact'
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const trackingEventService = new TrackingEventService()
+const trackingEventService = await app.container.make(TrackingEventService)
 
 async function createDelivery(status: 'processing' | 'sent' | 'bounced' | 'failed' = 'sent') {
   const owner = await UserFactory.create()

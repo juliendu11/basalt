@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import ApiKey from '#models/api_key'
 import ProjectPolicy from '#policies/project_policy'
@@ -6,9 +7,10 @@ import { createApiKeyValidator } from '#validators/api_key'
 import ApiKeyTransformer from '#transformers/api_key_transformer'
 import ProjectTransformer from '#transformers/project_transformer'
 
-const apiKeyService = new ApiKeyService()
-
+@inject()
 export default class ApiKeysController {
+  constructor(protected apiKeyService: ApiKeyService) {}
+
   async index({ project, inertia }: HttpContext) {
     const apiKeys = await ApiKey.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -31,7 +33,7 @@ export default class ApiKeysController {
     await bouncer.with(ProjectPolicy).authorize('update', project)
 
     const payload = await request.validateUsing(createApiKeyValidator)
-    const { token } = await apiKeyService.generate(project, auth.user!, payload)
+    const { token } = await this.apiKeyService.generate(project, auth.user!, payload)
 
     const apiKeys = await ApiKey.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -52,7 +54,7 @@ export default class ApiKeysController {
       .where('id', params.apiKeyId)
       .firstOrFail()
 
-    await apiKeyService.revoke(apiKey)
+    await this.apiKeyService.revoke(apiKey)
 
     session.flash('success', 'API key revoked.')
     return response.redirect().toRoute('api_keys.index', {

@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -12,7 +13,7 @@ import Tag from '#models/tag'
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const apiKeyService = new ApiKeyService()
-const segmentService = new SegmentService()
+const segmentService = await app.container.make(SegmentService)
 
 async function createProjectWithKey() {
   const owner = await UserFactory.create()
