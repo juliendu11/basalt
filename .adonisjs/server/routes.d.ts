@@ -21,6 +21,7 @@ export type ScannedRoutes = {
     'organizations.show': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organizations.update': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organizations.destroy': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
+    'organizations.truncate_contacts': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organizations.switch': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organization_members.index': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organization_members.update': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'membershipId': ParamValue} }
@@ -324,6 +325,7 @@ export type ScannedRoutes = {
   }
   DELETE: {
     'organizations.destroy': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
+    'organizations.truncate_contacts': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organization_members.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'membershipId': ParamValue} }
     'organization_invitations.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'invitationId': ParamValue} }
     'projects.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }

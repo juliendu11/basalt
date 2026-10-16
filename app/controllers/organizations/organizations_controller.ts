@@ -62,6 +62,15 @@ export default class OrganizationsController {
     return response.redirect().toRoute('organizations.index')
   }
 
+  async truncateContacts({ organization, bouncer, response, session }: HttpContext) {
+    await bouncer.with(OrganizationPolicy).authorize('truncateContacts', organization)
+
+    const count = await this.organizationService.truncateContacts(organization)
+
+    session.flash('success', `${count} contact(s) deleted.`)
+    return response.redirect().back()
+  }
+
   async switch({ organization, session, response }: HttpContext) {
     session.put('organizationId', organization.id)
 

@@ -85,6 +85,9 @@ router
               .delete('/', [controllers.organizations.Organizations, 'destroy'])
               .as('organizations.destroy')
             router
+              .delete('/contacts', [controllers.organizations.Organizations, 'truncateContacts'])
+              .as('organizations.truncate_contacts')
+            router
               .post('/switch', [controllers.organizations.Organizations, 'switch'])
               .as('organizations.switch')
 

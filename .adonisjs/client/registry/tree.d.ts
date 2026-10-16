@@ -30,6 +30,7 @@ export interface ApiDefinition {
     show: typeof routes['organizations.show']
     update: typeof routes['organizations.update']
     destroy: typeof routes['organizations.destroy']
+    truncateContacts: typeof routes['organizations.truncate_contacts']
     switch: typeof routes['organizations.switch']
   }
   organizationMembers: {

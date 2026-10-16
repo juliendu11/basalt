@@ -4,8 +4,14 @@ import User from '#models/user'
 import Organization from '#models/organization'
 import OrganizationMembership from '#models/organization_membership'
 import OrganizationService from '#services/organizations/organization_service'
+import Project from '#models/project'
+import ProjectService from '#services/projects/project_service'
+import Contact from '#models/contact'
+import { DateTime } from 'luxon'
+import db from '@adonisjs/lucid/services/db'
 
 const organizationService = new OrganizationService()
+const projectService = new ProjectService()
 
 test.group('Organizations (functional)', () => {
   test('a member can create an organization', async ({ client, assert }) => {
@@ -102,5 +108,57 @@ test.group('Organizations (functional)', () => {
       .firstOrFail()
 
     assert.isNotNull(membership)
+  })
+})
+
+test.group('Organizations — truncate contacts (functional)', () => {
+  test('an admin can delete every contact of the organization', async ({ client, assert }) => {
+    const owner = await UserFactory.create()
+    const organization = await organizationService.create(owner, { name: 'Acme' })
+    const project = await projectService.create(organization, owner, { name: 'P', timezone: 'UTC' })
+    await Contact.create({ projectId: project.id, email: 'a@example.com' } as any)
+    await Contact.create({ projectId: project.id, email: 'b@example.com' } as any)
+
+    const response = await client
+      .delete(`/organizations/${organization.id}/contacts`)
+      .loginAs(owner)
+      .withCsrfToken()
+      .redirects(0)
+
+    response.assertStatus(302)
+    const remaining = await Contact.query().where('projectId', project.id)
+    assert.lengthOf(remaining, 0)
+    assert.isNotNull(await Project.find(project.id))
+
+    const [[row]] = await db.rawQuery(
+      "SELECT AUTO_INCREMENT AS next FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contacts'"
+    )
+    const other = await Contact.query().max('id as maxId').first()
+    assert.equal(Number(row.next), Number(other?.$extras.maxId ?? 0) + 1)
+  })
+
+  test('a plain member cannot truncate contacts', async ({ client, assert }) => {
+    const owner = await UserFactory.create()
+    const organization = await organizationService.create(owner, { name: 'Acme' })
+    const project = await projectService.create(organization, owner, { name: 'P', timezone: 'UTC' })
+    await Contact.create({ projectId: project.id, email: 'a@example.com' } as any)
+    const member = await UserFactory.create()
+    await OrganizationMembership.create({
+      organizationId: organization.id,
+      userId: member.id,
+      role: 'member',
+      joinedAt: DateTime.now(),
+    })
+
+    const response = await client
+      .delete(`/organizations/${organization.id}/contacts`)
+      .loginAs(member)
+      .withCsrfToken()
+      .redirects(0)
+
+    // Bouncer redirects back for DELETE form submissions rather than a raw 403.
+    response.assertStatus(302)
+    const remaining = await Contact.query().where('projectId', project.id)
+    assert.lengthOf(remaining, 1)
   })
 })

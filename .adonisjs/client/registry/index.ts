@@ -108,6 +108,12 @@ const routes = {
     tokens: [{"old":"/organizations/:organizationId","type":0,"val":"organizations","end":""},{"old":"/organizations/:organizationId","type":1,"val":"organizationId","end":""}],
     types: placeholder as Registry['organizations.destroy']['types'],
   },
+  'organizations.truncate_contacts': {
+    methods: ["DELETE"],
+    pattern: '/organizations/:organizationId/contacts',
+    tokens: [{"old":"/organizations/:organizationId/contacts","type":0,"val":"organizations","end":""},{"old":"/organizations/:organizationId/contacts","type":1,"val":"organizationId","end":""},{"old":"/organizations/:organizationId/contacts","type":0,"val":"contacts","end":""}],
+    types: placeholder as Registry['organizations.truncate_contacts']['types'],
+  },
   'organizations.switch': {
     methods: ["POST"],
     pattern: '/organizations/:organizationId/switch',
