@@ -211,6 +211,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/organizations/organizations_controller').default['destroy']>>>
     }
   }
+  'organizations.truncate_contacts': {
+    methods: ["DELETE"]
+    pattern: '/organizations/:organizationId/contacts'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { organizationId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/organizations/organizations_controller').default['truncateContacts']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/organizations/organizations_controller').default['truncateContacts']>>>
+    }
+  }
   'organizations.switch': {
     methods: ["POST"]
     pattern: '/organizations/:organizationId/switch'
