@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Head } from '@inertiajs/vue3'
-import { Link } from '@adonisjs/inertia/vue'
+import { Form, Link } from '@adonisjs/inertia/vue'
 import ContactStatusBadge from '~/components/contact_status_badge.vue'
 import ProjectHeading from '~/components/project_heading.vue'
 
@@ -35,7 +36,10 @@ const props = defineProps<{
       lastPage: string
     }
   }
+  excludedContactIds: number[]
 }>()
+
+const excluded = computed(() => new Set(props.excludedContactIds))
 
 const statusBadge: Record<string, string> = {
   idle: 'badge-ghost',
@@ -88,10 +92,15 @@ const statusBadge: Record<string, string> = {
           <th>Email</th>
           <th>Name</th>
           <th>Status</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="contact in contacts.data" :key="contact.id">
+        <tr
+          v-for="contact in contacts.data"
+          :key="contact.id"
+          :class="{ 'opacity-40': excluded.has(contact.id) }"
+        >
           <td>
             <Link
               class="link link-hover"
@@ -107,6 +116,24 @@ const statusBadge: Record<string, string> = {
           </td>
           <td>{{ [contact.firstName, contact.lastName].filter(Boolean).join(' ') || '—' }}</td>
           <td><ContactStatusBadge :status="contact.status" /></td>
+          <td class="text-right">
+            <Form
+              method="post"
+              :route="
+                excluded.has(contact.id) ? 'segments.contacts.restore' : 'segments.contacts.exclude'
+              "
+              :params="{
+                organizationId: project.organizationId,
+                projectId: project.id,
+                segmentId: segment.id,
+                contactId: contact.id,
+              }"
+            >
+              <button type="submit" class="btn btn-ghost btn-xs">
+                {{ excluded.has(contact.id) ? 'Restore' : 'Remove' }}
+              </button>
+            </Form>
+          </td>
         </tr>
       </tbody>
     </table>

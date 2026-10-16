@@ -119,6 +119,7 @@ export default class ConditionEvaluator implements NodeExecutor {
       .from('segment_contacts')
       .where('segment_id', segmentId)
       .where('contact_id', contact.id)
+      .whereNull('excluded_at')
       .first()
 
     // Real bug fixed while implementing Phase 12 (docs/plans/16-email-tracking.md):

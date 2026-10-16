@@ -13,6 +13,7 @@ import ProjectTransformer from '#transformers/project_transformer'
 import CustomFieldDefinitionTransformer from '#transformers/custom_field_definition_transformer'
 import TagTransformer from '#transformers/tag_transformer'
 import type { SegmentDefinition } from '#types/segment_definition'
+import SegmentContact from '#models/segment_contact'
 import QueueDispatcher from '#services/jobs/queue_dispatcher'
 
 @inject()
@@ -88,10 +89,20 @@ export default class SegmentsController {
     })
     const contacts = await serialize(ContactTransformer.paginate(page.all(), page.getMeta()))
 
+    const excludedRows = await SegmentContact.query()
+      .where('segmentId', segment.id)
+      .whereIn(
+        'contactId',
+        page.all().map((contact) => contact.id)
+      )
+      .whereNotNull('excludedAt')
+      .select('contactId')
+
     return inertia.render('segments/show', {
       project: ProjectTransformer.transform(project),
       segment: SegmentTransformer.transform(segment),
       contacts,
+      excludedContactIds: excludedRows.map((row) => row.contactId),
     })
   }
 
@@ -183,6 +194,35 @@ export default class SegmentsController {
     })
 
     session.flash('success', 'Recompute enqueued.')
+    return response.redirect().back()
+  }
+
+  /** Manually removes a contact from the segment (kept greyed out, restorable). */
+  async excludeContact({ project, params, bouncer, response, session }: HttpContext) {
+    await bouncer.with(SegmentPolicy).authorize('update', project)
+
+    const segment = await Segment.query()
+      .withScopes((scopes) => scopes.forProject(project))
+      .where('id', params.segmentId)
+      .firstOrFail()
+
+    await this.segmentService.excludeContact(segment, Number(params.contactId))
+
+    session.flash('success', 'Contact removed from the segment.')
+    return response.redirect().back()
+  }
+
+  async restoreContact({ project, params, bouncer, response, session }: HttpContext) {
+    await bouncer.with(SegmentPolicy).authorize('update', project)
+
+    const segment = await Segment.query()
+      .withScopes((scopes) => scopes.forProject(project))
+      .where('id', params.segmentId)
+      .firstOrFail()
+
+    await this.segmentService.restoreContact(segment, Number(params.contactId))
+
+    session.flash('success', 'Contact restored in the segment.')
     return response.redirect().back()
   }
 }
