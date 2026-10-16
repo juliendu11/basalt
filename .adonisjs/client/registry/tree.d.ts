@@ -144,6 +144,10 @@ export interface ApiDefinition {
     update: typeof routes['segments.update']
     destroy: typeof routes['segments.destroy']
     recompute: typeof routes['segments.recompute']
+    contacts: {
+      exclude: typeof routes['segments.contacts.exclude']
+      restore: typeof routes['segments.contacts.restore']
+    }
   }
   campaigns: {
     index: typeof routes['campaigns.index']

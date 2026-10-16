@@ -58,6 +58,7 @@ export default class EnrollExistingSegmentMembersOnCampaignActivated {
     for (;;) {
       const batch = await SegmentContact.query()
         .where('segmentId', segmentId)
+        .whereNull('excludedAt')
         .where('id', '>', lastId)
         .orderBy('id', 'asc')
         .limit(BATCH_SIZE)

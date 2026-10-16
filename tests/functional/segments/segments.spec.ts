@@ -265,6 +265,57 @@ test.group('Segments (functional)', () => {
     assert.equal(segment.lastComputationStatus, 'success')
   })
 
+  test('an excluded contact stays greyed, survives a recompute, and can be restored', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, organization, project } = await createProject()
+    const contact = await contactService.create(project, owner, {
+      email: 'a@example.com',
+      country: 'France',
+    })
+    const segment = await Segment.create({
+      projectId: project.id,
+      name: 'French',
+      definition: {
+        combinator: 'AND',
+        conditions: [{ field: 'country', operator: 'equals', value: 'France' }],
+      },
+      referencedFields: ['country'],
+    })
+    const recompute = new SegmentRecomputeService()
+    await recompute.full(segment)
+
+    const base = `/organizations/${organization.id}/projects/${project.id}/segments/${segment.id}/contacts/${contact.id}`
+
+    await client
+      .post(`${base}/exclude`)
+      .loginAs(owner)
+      .withCsrfToken()
+      .redirects(0)
+      .json({})
+      .then((r) => r.assertStatus(302))
+
+    await recompute.full(segment)
+    const row = await SegmentContact.query().where('segmentId', segment.id).firstOrFail()
+    assert.isNotNull(row.excludedAt)
+    await segment.refresh()
+    assert.equal(segment.contactCountCache, 0)
+
+    await client
+      .post(`${base}/restore`)
+      .loginAs(owner)
+      .withCsrfToken()
+      .redirects(0)
+      .json({})
+      .then((r) => r.assertStatus(302))
+
+    await row.refresh()
+    assert.isNull(row.excludedAt)
+    await segment.refresh()
+    assert.equal(segment.contactCountCache, 1)
+  })
+
   test('a non-member gets a 404 on a project they do not belong to', async ({ client }) => {
     const { organization, project } = await createProject()
     const outsider = await UserFactory.create()

@@ -636,12 +636,14 @@ export class SegmentSchema extends BaseModel {
 }
 
 export class SegmentContactSchema extends BaseModel {
-  static $columns = ['addedAt', 'contactId', 'id', 'segmentId'] as const
+  static $columns = ['addedAt', 'contactId', 'excludedAt', 'id', 'segmentId'] as const
   $columns = SegmentContactSchema.$columns
   @column.dateTime()
   declare addedAt: DateTime
   @column()
   declare contactId: number
+  @column.dateTime()
+  declare excludedAt: DateTime | null
   @column({ isPrimary: true })
   declare id: number
   @column()

@@ -108,6 +108,8 @@ export type ScannedRoutes = {
     'segments.update': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue} }
     'segments.destroy': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue} }
     'segments.recompute': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue} }
+    'segments.contacts.exclude': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue,'contactId': ParamValue} }
+    'segments.contacts.restore': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue,'contactId': ParamValue} }
     'campaigns.index': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.create': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
@@ -295,6 +297,8 @@ export type ScannedRoutes = {
     'segments.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'segments.preview': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'segments.recompute': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue} }
+    'segments.contacts.exclude': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue,'contactId': ParamValue} }
+    'segments.contacts.restore': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue,'contactId': ParamValue} }
     'campaigns.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.duplicate': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
     'campaigns.activate': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }

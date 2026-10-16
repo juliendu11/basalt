@@ -1255,6 +1255,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/segments/segments_controller').default['recompute']>>>
     }
   }
+  'segments.contacts.exclude': {
+    methods: ["POST"]
+    pattern: '/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue, ParamValue, ParamValue]
+      params: { organizationId: ParamValue; projectId: ParamValue; segmentId: ParamValue; contactId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/segments/segments_controller').default['excludeContact']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/segments/segments_controller').default['excludeContact']>>>
+    }
+  }
+  'segments.contacts.restore': {
+    methods: ["POST"]
+    pattern: '/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue, ParamValue, ParamValue]
+      params: { organizationId: ParamValue; projectId: ParamValue; segmentId: ParamValue; contactId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/segments/segments_controller').default['restoreContact']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/segments/segments_controller').default['restoreContact']>>>
+    }
+  }
   'campaigns.index': {
     methods: ["GET","HEAD"]
     pattern: '/organizations/:organizationId/projects/:projectId/campaigns'

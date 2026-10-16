@@ -1,6 +1,10 @@
 import { inject } from '@adonisjs/core'
 import type Project from '#models/project'
 import Segment from '#models/segment'
+import { DateTime } from 'luxon'
+import SegmentContact from '#models/segment_contact'
+import SegmentMembershipAdded from '#events/segment_membership_added'
+import SegmentMembershipRemoved from '#events/segment_membership_removed'
 import QueueDispatcher from '#services/jobs/queue_dispatcher'
 import {
   isConditionGroup,
@@ -43,6 +47,49 @@ export default class SegmentService {
     })
 
     return target
+  }
+
+  /**
+   * Manually removes a contact from the segment without deleting its
+   * `segment_contacts` row: the row is flagged `excluded_at` so the contact
+   * is shown greyed out, ignored by campaigns, and never re-added by a
+   * recompute. Idempotent. Returns false if the contact isn't in the segment.
+   */
+  async excludeContact(segment: Segment, contactId: number): Promise<boolean> {
+    const row = await SegmentContact.query()
+      .where('segmentId', segment.id)
+      .where('contactId', contactId)
+      .first()
+    if (!row) return false
+    if (row.excludedAt) return true
+
+    row.excludedAt = DateTime.now()
+    await row.save()
+
+    segment.contactCountCache = Math.max(0, segment.contactCountCache - 1)
+    await segment.save()
+
+    await SegmentMembershipRemoved.dispatch(segment.id, [contactId])
+    return true
+  }
+
+  /** Undoes `excludeContact`. Idempotent. Returns false if the contact isn't in the segment. */
+  async restoreContact(segment: Segment, contactId: number): Promise<boolean> {
+    const row = await SegmentContact.query()
+      .where('segmentId', segment.id)
+      .where('contactId', contactId)
+      .first()
+    if (!row) return false
+    if (!row.excludedAt) return true
+
+    row.excludedAt = null
+    await row.save()
+
+    segment.contactCountCache += 1
+    await segment.save()
+
+    await SegmentMembershipAdded.dispatch(segment.id, [contactId])
+    return true
   }
 
   /**

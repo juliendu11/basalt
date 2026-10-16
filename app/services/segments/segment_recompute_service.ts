@@ -82,7 +82,9 @@ export default class SegmentRecomputeService {
         await SegmentMembershipRemoved.dispatch(segment.id, removedIds)
       }
 
-      segment.contactCountCache = matchedCount
+      // Manually excluded contacts keep their row (so a recompute never
+      // re-adds them) but don't count as members.
+      segment.contactCountCache = await this.#countActiveMembers(segment.id)
       segment.lastComputedAt = DateTime.now()
       segment.lastComputationStatus = 'success'
       await segment.save()
@@ -143,6 +145,14 @@ export default class SegmentRecomputeService {
       await SegmentMembershipRemoved.dispatch(segment.id, [contact.id])
       await SegmentRecomputed.dispatch(segment.id, 0, 1, Date.now() - startedAt)
     }
+  }
+
+  async #countActiveMembers(segmentId: number): Promise<number> {
+    const [row] = await SegmentContact.query()
+      .where('segmentId', segmentId)
+      .whereNull('excludedAt')
+      .count('* as total')
+    return Number(row.$extras.total)
   }
 
   async #insertNewMembers(segmentId: number, contactIds: number[]): Promise<number[]> {
