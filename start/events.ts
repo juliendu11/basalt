@@ -41,6 +41,7 @@ import CampaignExecutionCompleted from '#events/campaign_execution_completed'
 import CampaignExecutionCancelled from '#events/campaign_execution_cancelled'
 import CampaignExecutionFailed from '#events/campaign_execution_failed'
 import SegmentMembershipAdded from '#events/segment_membership_added'
+import SegmentMembershipRemoved from '#events/segment_membership_removed'
 import CampaignEnrollmentCreated from '#events/campaign_enrollment_created'
 import EmailDelivered from '#events/email_delivered'
 import EmailBounced from '#events/email_bounced'
@@ -88,6 +89,9 @@ emitter.listen(CampaignExecutionCancelled, [() => import('#listeners/write_audit
 emitter.listen(CampaignExecutionFailed, [() => import('#listeners/write_audit_log')])
 emitter.listen(SegmentMembershipAdded, [
   () => import('#listeners/enroll_contacts_on_segment_membership_added'),
+])
+emitter.listen(SegmentMembershipRemoved, [
+  () => import('#listeners/cancel_enrollments_on_segment_membership_removed'),
 ])
 emitter.listen(CampaignEnrollmentCreated, [() => import('#listeners/write_audit_log')])
 emitter.listen(EmailDelivered, [() => import('#listeners/write_audit_log')])

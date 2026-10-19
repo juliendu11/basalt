@@ -1,3 +1,6 @@
+import { inject } from '@adonisjs/core'
+import Segment from '#models/segment'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 import type Project from '#models/project'
 import Tag from '#models/tag'
 import BusinessRuleViolation from '#exceptions/business_rule_violation'
@@ -18,7 +21,10 @@ export interface TagPayload {
  * (app/services/contacts/contact_service.ts) rather than trusting the
  * unique constraint to fail nicely.
  */
+@inject()
 export default class TagService {
+  constructor(protected queueDispatcher: QueueDispatcher) {}
+
   async create(project: Project, payload: TagPayload): Promise<Tag> {
     await this.#assertNameAvailable(project, payload.name)
 
@@ -50,10 +56,20 @@ export default class TagService {
    * § Tags) — deleting the tag row is enough, no manual detach needed. Any
    * campaign `add_tag`/`remove_tag` node or segment condition still
    * referencing this `tagId` becomes a silent no-op rather than an error
-   * (neither has a foreign key on `tags.id`) — not cleaned up here.
+   * (neither has a foreign key on `tags.id`) — not cleaned up here. Segments
+   * filtering on tags are recomputed, so contacts that only matched through
+   * this tag leave them (which cancels their pending campaign sends).
    */
   async delete(tag: Tag): Promise<void> {
     await tag.delete()
+
+    const segments = await Segment.query().where('projectId', tag.projectId)
+    for (const segment of segments.filter((s) => s.referencedFields.includes('tags'))) {
+      await this.queueDispatcher.dispatch('segments', 'segment.recompute', {
+        segmentId: segment.id,
+        mode: 'full',
+      })
+    }
   }
 
   async #assertNameAvailable(
