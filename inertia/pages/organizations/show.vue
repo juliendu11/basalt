@@ -16,6 +16,18 @@ const props = defineProps<{
 const page = usePage<Data.SharedProps>()
 const isOwner = () => page.props.user?.id === props.organization.ownerUserId
 
+const canTruncate = () => ['owner', 'admin'].includes(page.props.currentOrganization?.role ?? '')
+
+function confirmTruncate(event: MouseEvent) {
+  if (
+    !confirm(
+      'Delete ALL contacts of this organization, with their tags, segment memberships, enrollments and email history? This cannot be undone.'
+    )
+  ) {
+    event.preventDefault()
+  }
+}
+
 function confirmDeletion(event: MouseEvent) {
   if (!confirm('Delete this organization and everything in it? This cannot be undone.')) {
     event.preventDefault()
@@ -74,6 +86,24 @@ function confirmDeletion(event: MouseEvent) {
 
         <button type="submit" class="btn btn-primary btn-sm self-start" :disabled="processing">
           Save
+        </button>
+      </Form>
+    </section>
+
+    <section v-if="canTruncate()" class="mb-10 rounded-box border border-error/30 p-4">
+      <h2 class="mb-1 text-lg font-medium text-error">Delete all contacts</h2>
+      <p class="mb-3 text-sm opacity-70">
+        Permanently removes every contact of every project in this organization, along with their
+        tags, segment memberships, campaign enrollments and email history. Projects, campaigns and
+        segments are kept. This cannot be undone.
+      </p>
+      <Form
+        method="delete"
+        route="organizations.truncate_contacts"
+        :params="{ organizationId: organization.id }"
+      >
+        <button type="submit" class="btn btn-error btn-sm" @click="confirmTruncate">
+          Delete all contacts
         </button>
       </Form>
     </section>

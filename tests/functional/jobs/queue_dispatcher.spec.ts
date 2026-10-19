@@ -1,9 +1,16 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { Worker } from 'bullmq'
 import { queueConnection } from '#config/queue'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
-import queueRegistry from '#services/jobs/queue_registry'
-import jobHandlerRegistry from '#services/jobs/job_handler_registry'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueRegistry from '#services/jobs/queue_registry'
+import JobHandlerRegistry from '#services/jobs/job_handler_registry'
+
+const jobHandlerRegistry = await app.container.make(JobHandlerRegistry)
+
+const queueDispatcher = await app.container.make(QueueDispatcher)
+
+const queueRegistry = await app.container.make(QueueRegistry)
 
 /**
  * End-to-end check of the BullMQ wiring (docs/plans/14-jobs-and-queues.md):

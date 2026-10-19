@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Campaign from '#models/campaign'
 import CampaignVersion from '#models/campaign_version'
@@ -12,12 +13,15 @@ import CampaignVersionTransformer from '#transformers/campaign_version_transform
 import ProjectTransformer from '#transformers/project_transformer'
 import BusinessRuleViolation from '#exceptions/business_rule_violation'
 
-const campaignService = new CampaignService()
-const campaignBuilderService = new CampaignBuilderService()
-const upcomingSendsService = new UpcomingSendsService()
-const sentEmailsService = new SentEmailsService()
-
+@inject()
 export default class CampaignsController {
+  constructor(
+    protected campaignService: CampaignService,
+    protected campaignBuilderService: CampaignBuilderService,
+    protected upcomingSendsService: UpcomingSendsService,
+    protected sentEmailsService: SentEmailsService
+  ) {}
+
   async index({ project, inertia }: HttpContext) {
     const campaigns = await Campaign.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -45,7 +49,7 @@ export default class CampaignsController {
     await bouncer.with(CampaignPolicy).authorize('create', project)
 
     const payload = await request.validateUsing(createCampaignValidator)
-    const campaign = await campaignService.create(project, auth.user!, payload)
+    const campaign = await this.campaignService.create(project, auth.user!, payload)
 
     session.flash('success', `${campaign.name} was created.`)
     return response.redirect().toRoute('campaigns.builder.show', {
@@ -100,8 +104,8 @@ export default class CampaignsController {
     const sentPage = request.input('sentPage') ? Number(request.input('sentPage')) : 1
 
     const [upcoming, sent] = await Promise.all([
-      upcomingSendsService.forCampaign(campaign, page),
-      sentEmailsService.forCampaign(campaign, sentPage),
+      this.upcomingSendsService.forCampaign(campaign, page),
+      this.sentEmailsService.forCampaign(campaign, sentPage),
     ])
 
     return inertia.render('campaigns/upcoming', {
@@ -163,7 +167,7 @@ export default class CampaignsController {
       .where('id', params.campaignId)
       .firstOrFail()
 
-    const copy = await campaignService.duplicate(campaign, auth.user!)
+    const copy = await this.campaignService.duplicate(campaign, auth.user!)
 
     session.flash('success', `${copy.name} was created.`)
     return response.redirect().toRoute('campaigns.show', {
@@ -195,7 +199,7 @@ export default class CampaignsController {
       throw new BusinessRuleViolation('This campaign has no draft to publish.')
     }
 
-    await campaignBuilderService.publish(draftVersion, auth.user!)
+    await this.campaignBuilderService.publish(draftVersion, auth.user!)
 
     session.flash('success', `${campaign.name} was published.`)
     return response.redirect().back()
@@ -209,7 +213,7 @@ export default class CampaignsController {
       .where('id', params.campaignId)
       .firstOrFail()
 
-    await campaignService.pause(campaign, auth.user!)
+    await this.campaignService.pause(campaign, auth.user!)
 
     session.flash('success', 'Campaign paused.')
     return response.redirect().back()
@@ -223,7 +227,7 @@ export default class CampaignsController {
       .where('id', params.campaignId)
       .firstOrFail()
 
-    await campaignService.resume(campaign, auth.user!)
+    await this.campaignService.resume(campaign, auth.user!)
 
     session.flash('success', 'Campaign resumed.')
     return response.redirect().back()
@@ -237,7 +241,7 @@ export default class CampaignsController {
       .where('id', params.campaignId)
       .firstOrFail()
 
-    await campaignService.archive(campaign, auth.user!)
+    await this.campaignService.archive(campaign, auth.user!)
 
     session.flash('success', 'Campaign archived.')
     return response.redirect().back()

@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Segment from '#models/segment'
 import CustomFieldDefinition from '#models/custom_field_definition'
@@ -12,12 +13,17 @@ import ProjectTransformer from '#transformers/project_transformer'
 import CustomFieldDefinitionTransformer from '#transformers/custom_field_definition_transformer'
 import TagTransformer from '#transformers/tag_transformer'
 import type { SegmentDefinition } from '#types/segment_definition'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import SegmentContact from '#models/segment_contact'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 
-const segmentService = new SegmentService()
-const contactQueryService = new ContactQueryService()
-
+@inject()
 export default class SegmentsController {
+  constructor(
+    protected segmentService: SegmentService,
+    protected contactQueryService: ContactQueryService,
+    protected queueDispatcher: QueueDispatcher
+  ) {}
+
   async index({ project, inertia }: HttpContext) {
     const segments = await Segment.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -52,7 +58,7 @@ export default class SegmentsController {
     const payload = await request.validateUsing(createSegmentValidator, {
       meta: { projectId: project.id },
     })
-    const segment = await segmentService.save(project, {
+    const segment = await this.segmentService.save(project, {
       name: payload.name,
       description: payload.description ?? null,
       definition: payload.definition as SegmentDefinition,
@@ -77,16 +83,26 @@ export default class SegmentsController {
       return inertia.render('errors/not_found', {})
     }
 
-    const page = await contactQueryService.paginate(project, {
+    const page = await this.contactQueryService.paginate(project, {
       segmentId: segment.id,
       page: request.input('page') ? Number(request.input('page')) : undefined,
     })
     const contacts = await serialize(ContactTransformer.paginate(page.all(), page.getMeta()))
 
+    const excludedRows = await SegmentContact.query()
+      .where('segmentId', segment.id)
+      .whereIn(
+        'contactId',
+        page.all().map((contact) => contact.id)
+      )
+      .whereNotNull('excludedAt')
+      .select('contactId')
+
     return inertia.render('segments/show', {
       project: ProjectTransformer.transform(project),
       segment: SegmentTransformer.transform(segment),
       contacts,
+      excludedContactIds: excludedRows.map((row) => row.contactId),
     })
   }
 
@@ -129,7 +145,7 @@ export default class SegmentsController {
     const payload = await request.validateUsing(updateSegmentValidator, {
       meta: { projectId: project.id },
     })
-    await segmentService.save(
+    await this.segmentService.save(
       project,
       {
         name: payload.name,
@@ -151,7 +167,7 @@ export default class SegmentsController {
       .where('id', params.segmentId)
       .firstOrFail()
 
-    await segmentService.delete(segment)
+    await this.segmentService.delete(segment)
 
     session.flash('success', 'Segment deleted.')
     return response.redirect().toRoute('segments.index', {
@@ -172,12 +188,41 @@ export default class SegmentsController {
     segment.lastComputationStatus = 'running'
     await segment.save()
 
-    await queueDispatcher.dispatch('segments', 'segment.recompute', {
+    await this.queueDispatcher.dispatch('segments', 'segment.recompute', {
       segmentId: segment.id,
       mode: 'full',
     })
 
     session.flash('success', 'Recompute enqueued.')
+    return response.redirect().back()
+  }
+
+  /** Manually removes a contact from the segment (kept greyed out, restorable). */
+  async excludeContact({ project, params, bouncer, response, session }: HttpContext) {
+    await bouncer.with(SegmentPolicy).authorize('update', project)
+
+    const segment = await Segment.query()
+      .withScopes((scopes) => scopes.forProject(project))
+      .where('id', params.segmentId)
+      .firstOrFail()
+
+    await this.segmentService.excludeContact(segment, Number(params.contactId))
+
+    session.flash('success', 'Contact removed from the segment.')
+    return response.redirect().back()
+  }
+
+  async restoreContact({ project, params, bouncer, response, session }: HttpContext) {
+    await bouncer.with(SegmentPolicy).authorize('update', project)
+
+    const segment = await Segment.query()
+      .withScopes((scopes) => scopes.forProject(project))
+      .where('id', params.segmentId)
+      .firstOrFail()
+
+    await this.segmentService.restoreContact(segment, Number(params.contactId))
+
+    session.flash('success', 'Contact restored in the segment.')
     return response.redirect().back()
   }
 }

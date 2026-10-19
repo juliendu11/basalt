@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { DateTime } from 'luxon'
 import { Worker } from 'bullmq'
 import { test } from '@japa/runner'
@@ -17,20 +18,26 @@ import CampaignExecution from '#models/campaign_execution'
 import CampaignEngineService from '#services/automation/campaign_engine_service'
 import ExecutionSchedulerService from '#services/automation/execution_scheduler_service'
 import { queueConnection } from '#config/queue'
-import queueRegistry from '#services/jobs/queue_registry'
-import jobHandlerRegistry from '#services/jobs/job_handler_registry'
-import scheduledTaskRegistry from '#services/jobs/scheduled_task_registry'
+import QueueRegistry from '#services/jobs/queue_registry'
+import JobHandlerRegistry from '#services/jobs/job_handler_registry'
+import ScheduledTaskRegistry from '#services/jobs/scheduled_task_registry'
 import type { BuilderEdge, BuilderNode } from '#types/campaign_graph'
+
+const scheduledTaskRegistry = await app.container.make(ScheduledTaskRegistry)
+
+const jobHandlerRegistry = await app.container.make(JobHandlerRegistry)
+
+const queueRegistry = await app.container.make(QueueRegistry)
 
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const segmentService = new SegmentService()
-const campaignService = new CampaignService()
-const builderService = new CampaignBuilderService()
-const emailService = new EmailService()
+const segmentService = await app.container.make(SegmentService)
+const campaignService = await app.container.make(CampaignService)
+const builderService = await app.container.make(CampaignBuilderService)
+const emailService = await app.container.make(EmailService)
 const smtpConnectorService = new SmtpConnectorService()
-const engine = new CampaignEngineService()
+const engine = await app.container.make(CampaignEngineService)
 const scheduler = new ExecutionSchedulerService()
 
 async function createFixtures() {

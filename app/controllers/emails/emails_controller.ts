@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Email from '#models/email'
 import EmailTemplate from '#models/email_template'
@@ -26,10 +27,13 @@ import {
 } from '#services/emails/variable_renderer'
 import { composeEmailHtml, composeEmailText } from '#services/emails/email_layout_composer'
 
-const emailService = new EmailService()
-const emailTestSendService = new EmailTestSendService()
-
+@inject()
 export default class EmailsController {
+  constructor(
+    protected emailService: EmailService,
+    protected emailTestSendService: EmailTestSendService
+  ) {}
+
   async index({ project, inertia }: HttpContext) {
     const emails = await Email.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -75,7 +79,12 @@ export default class EmailsController {
         .where('id', payload.templateId)
         .firstOrFail()
 
-      const email = await emailService.createFromTemplate(project, template, auth.user!, payload)
+      const email = await this.emailService.createFromTemplate(
+        project,
+        template,
+        auth.user!,
+        payload
+      )
 
       session.flash('success', `${email.name} was created from a template.`)
       return response.redirect().toRoute('emails.edit', {
@@ -92,7 +101,7 @@ export default class EmailsController {
         .where('id', payload.layoutId)
         .firstOrFail()
 
-      const email = await emailService.createFromLayout(project, layout, auth.user!, payload)
+      const email = await this.emailService.createFromLayout(project, layout, auth.user!, payload)
 
       session.flash('success', `${email.name} was created from a layout.`)
       return response.redirect().toRoute('emails.edit', {
@@ -103,7 +112,7 @@ export default class EmailsController {
     }
 
     const payload = await request.validateUsing(createEmailValidator)
-    const email = await emailService.create(project, auth.user!, payload)
+    const email = await this.emailService.create(project, auth.user!, payload)
 
     session.flash('success', `${email.name} was created.`)
     return response.redirect().toRoute('emails.edit', {
@@ -162,10 +171,10 @@ export default class EmailsController {
         .where('id', payload.layoutId)
         .firstOrFail()
 
-      await emailService.updateFromLayout(email, layout, auth.user!, payload)
+      await this.emailService.updateFromLayout(email, layout, auth.user!, payload)
     } else {
       const payload = await request.validateUsing(updateEmailValidator)
-      await emailService.update(email, auth.user!, payload)
+      await this.emailService.update(email, auth.user!, payload)
     }
 
     session.flash('success', 'Email updated.')
@@ -180,7 +189,7 @@ export default class EmailsController {
       .where('id', params.emailId)
       .firstOrFail()
 
-    await emailService.delete(email, auth.user!)
+    await this.emailService.delete(email, auth.user!)
 
     session.flash('success', 'Email deleted.')
     return response.redirect().toRoute('emails.index', {
@@ -197,7 +206,7 @@ export default class EmailsController {
       .where('id', params.emailId)
       .firstOrFail()
 
-    await emailService.duplicate(email, auth.user!)
+    await this.emailService.duplicate(email, auth.user!)
 
     session.flash('success', 'Email duplicated.')
     return response.redirect().toRoute('emails.index', {
@@ -216,7 +225,11 @@ export default class EmailsController {
       .firstOrFail()
 
     try {
-      const translated = await emailService.translate(email, auth.user!, payload.targetLanguage)
+      const translated = await this.emailService.translate(
+        email,
+        auth.user!,
+        payload.targetLanguage
+      )
 
       session.flash('success', `${translated.name} was created from a translation.`)
       return response.redirect().toRoute('emails.edit', {
@@ -240,10 +253,10 @@ export default class EmailsController {
       .firstOrFail()
 
     if (email.status === 'published') {
-      await emailService.unpublish(email, auth.user!)
+      await this.emailService.unpublish(email, auth.user!)
       session.flash('success', 'Email unpublished.')
     } else {
-      await emailService.publish(email, auth.user!)
+      await this.emailService.publish(email, auth.user!)
       session.flash('success', 'Email published.')
     }
 
@@ -266,7 +279,7 @@ export default class EmailsController {
       .firstOrFail()
 
     try {
-      await emailTestSendService.send(project, email, payload.testEmail)
+      await this.emailTestSendService.send(project, email, payload.testEmail)
       session.flash('success', `Test email sent to ${payload.testEmail}.`)
     } catch (error) {
       session.flash('error', error instanceof Error ? error.message : 'Failed to send test email.')

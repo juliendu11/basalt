@@ -33,6 +33,12 @@ export default class OrganizationPolicy extends BasePolicy {
     return role !== null && roleAtLeast(role, 'admin')
   }
 
+  /** Wiping every contact (and their history) of the organization requires at least `admin`. */
+  async truncateContacts(user: User, organization: Organization): Promise<AuthorizerResponse> {
+    const role = await this.#roleFor(user, organization)
+    return role !== null && roleAtLeast(role, 'admin')
+  }
+
   /** Only the current owner can delete the organization. */
   async destroy(user: User, organization: Organization): Promise<AuthorizerResponse> {
     return organization.ownerUserId === user.id

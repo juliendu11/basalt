@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 import Campaign from '#models/campaign'
@@ -13,8 +14,6 @@ import StatisticsService, {
 const PRESETS = new Set<PeriodPreset>(['today', 'last_7_days', 'last_30_days', 'custom'])
 const MAX_CUSTOM_RANGE_DAYS = 366
 
-const statisticsService = new StatisticsService()
-
 /**
  * Read-only for every project role including `viewer`
  * (docs/plans/18-statistics-dashboard.md § Permissions) — no Bouncer check
@@ -22,13 +21,16 @@ const statisticsService = new StatisticsService()
  * this codebase (project membership itself, already enforced by
  * `project_context_middleware`, is the only gate).
  */
+@inject()
 export default class StatisticsController {
+  constructor(protected statisticsService: StatisticsService) {}
+
   async dashboard({ project, request, inertia }: HttpContext) {
     const period = this.#parsePeriod(request)
 
     const [summary, timeSeries] = await Promise.all([
-      statisticsService.projectSummary(project, period),
-      statisticsService.timeSeries(project, period),
+      this.statisticsService.projectSummary(project, period),
+      this.statisticsService.timeSeries(project, period),
     ])
 
     return inertia.render('dashboard/index', {
@@ -57,9 +59,9 @@ export default class StatisticsController {
     const period = this.#parsePeriod(request)
 
     const [summary, timeSeries, nodePerformance] = await Promise.all([
-      statisticsService.campaignSummary(campaign, period),
-      statisticsService.campaignTimeSeries(campaign, period),
-      statisticsService.campaignNodePerformance(campaign),
+      this.statisticsService.campaignSummary(campaign, period),
+      this.statisticsService.campaignTimeSeries(campaign, period),
+      this.statisticsService.campaignNodePerformance(campaign),
     ])
 
     return inertia.render('campaigns/statistics', {
@@ -87,7 +89,7 @@ export default class StatisticsController {
       .where('id', params.campaignId)
       .firstOrFail()
 
-    const nodePerformance = await statisticsService.campaignNodePerformance(campaign)
+    const nodePerformance = await this.statisticsService.campaignNodePerformance(campaign)
     const node = nodePerformance.find((n) => n.nodeId === Number(params.nodeId))
     if (!node) {
       return inertia.render('errors/not_found', {})

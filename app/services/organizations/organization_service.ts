@@ -9,6 +9,19 @@ import OrganizationOwnershipTransferred from '#events/organization_ownership_tra
 import { slugify } from '#utils/slugify'
 import { storeUploadedImage, deleteUploadedImage } from '#utils/uploaded_image'
 
+/** Static allow-list (interpolated into DDL) of `contacts` and every table cascading from it. */
+const CONTACT_RELATED_TABLES = [
+  'contacts',
+  'contact_tags',
+  'segment_contacts',
+  'campaign_enrollments',
+  'campaign_executions',
+  'email_deliveries',
+  'email_events',
+  'unsubscribe_tokens',
+  'contact_unsubscribe_events',
+]
+
 export default class OrganizationService {
   /**
    * Creates an organization with the given user as its sole `owner`
@@ -77,6 +90,32 @@ export default class OrganizationService {
   async delete(organization: Organization): Promise<void> {
     await organization.delete()
     await deleteUploadedImage(organization.imagePath)
+  }
+
+  /**
+   * Hard-deletes every contact of every project in the organization (soft-deleted
+   * ones included). Everything hanging off a contact — tags pivot, segment
+   * memberships, campaign enrollments/executions, email deliveries/events,
+   * unsubscribe tokens/events — is removed by the `ON DELETE CASCADE` foreign
+   * keys. Auto-increment counters of these tables are then reset (to 1 when empty).
+   * Returns the number of deleted contacts.
+   */
+  async truncateContacts(organization: Organization): Promise<number> {
+    const deleted = await db
+      .from('contacts')
+      .whereIn(
+        'project_id',
+        db.from('projects').select('id').where('organization_id', organization.id)
+      )
+      .delete()
+
+    // Ids are shared across organizations, so a true reset to 1 is only possible
+    // when nothing is left: the engine clamps AUTO_INCREMENT to MAX(id)+1 otherwise.
+    for (const table of CONTACT_RELATED_TABLES) {
+      await db.rawQuery(`ALTER TABLE \`${table}\` AUTO_INCREMENT = 1`)
+    }
+
+    return Number(deleted)
   }
 
   /**

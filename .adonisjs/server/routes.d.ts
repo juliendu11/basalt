@@ -21,6 +21,7 @@ export type ScannedRoutes = {
     'organizations.show': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organizations.update': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organizations.destroy': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
+    'organizations.truncate_contacts': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organizations.switch': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organization_members.index': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organization_members.update': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'membershipId': ParamValue} }
@@ -107,6 +108,8 @@ export type ScannedRoutes = {
     'segments.update': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue} }
     'segments.destroy': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue} }
     'segments.recompute': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue} }
+    'segments.contacts.exclude': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue,'contactId': ParamValue} }
+    'segments.contacts.restore': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue,'contactId': ParamValue} }
     'campaigns.index': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.create': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
@@ -294,6 +297,8 @@ export type ScannedRoutes = {
     'segments.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'segments.preview': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'segments.recompute': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue} }
+    'segments.contacts.exclude': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue,'contactId': ParamValue} }
+    'segments.contacts.restore': { paramsTuple: [ParamValue,ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'segmentId': ParamValue,'contactId': ParamValue} }
     'campaigns.store': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }
     'campaigns.duplicate': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
     'campaigns.activate': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue,'campaignId': ParamValue} }
@@ -324,6 +329,7 @@ export type ScannedRoutes = {
   }
   DELETE: {
     'organizations.destroy': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
+    'organizations.truncate_contacts': { paramsTuple: [ParamValue]; params: {'organizationId': ParamValue} }
     'organization_members.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'membershipId': ParamValue} }
     'organization_invitations.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'invitationId': ParamValue} }
     'projects.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organizationId': ParamValue,'projectId': ParamValue} }

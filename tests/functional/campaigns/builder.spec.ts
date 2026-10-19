@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -11,9 +12,9 @@ import CampaignNode from '#models/campaign_node'
 
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
-const campaignService = new CampaignService()
-const emailService = new EmailService()
-const segmentService = new SegmentService()
+const campaignService = await app.container.make(CampaignService)
+const emailService = await app.container.make(EmailService)
+const segmentService = await app.container.make(SegmentService)
 const membershipService = new OrganizationMembershipService()
 
 async function createFixtures() {

@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
@@ -10,7 +11,7 @@ import StatisticsService, { resolvePeriod } from '#services/statistics/statistic
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const statisticsService = new StatisticsService()
+const statisticsService = await app.container.make(StatisticsService)
 
 async function fixtures() {
   const owner = await UserFactory.create()

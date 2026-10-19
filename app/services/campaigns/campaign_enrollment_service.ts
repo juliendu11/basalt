@@ -1,3 +1,5 @@
+import app from '@adonisjs/core/services/app'
+import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
 import type { Job } from 'bullmq'
 import db from '@adonisjs/lucid/services/db'
@@ -7,7 +9,7 @@ import Contact from '#models/contact'
 import CampaignEnrollment from '#models/campaign_enrollment'
 import CampaignExecution from '#models/campaign_execution'
 import CampaignEnrollmentCreated from '#events/campaign_enrollment_created'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 
 const TERMINAL_ENROLLMENT_STATUSES = new Set(['completed', 'exited', 'cancelled'])
 
@@ -18,7 +20,10 @@ const TERMINAL_ENROLLMENT_STATUSES = new Set(['completed', 'exited', 'cancelled'
  * actually running that contact through a published graph (Phase 10,
  * untouched by this service beyond enqueuing its first `advance()` job).
  */
+@inject()
 export default class CampaignEnrollmentService {
+  constructor(protected queueDispatcher: QueueDispatcher) {}
+
   /**
    * @param segmentId the segment whose membership change triggered this
    *   call — used only to build the enrollment's `source` label, never
@@ -120,7 +125,7 @@ export default class CampaignEnrollmentService {
     )
 
     // Step 7.
-    await queueDispatcher.dispatch('campaign-engine', 'campaign-engine.advance', {
+    await this.queueDispatcher.dispatch('campaign-engine', 'campaign-engine.advance', {
       executionId: execution.id,
     })
   }
@@ -147,7 +152,7 @@ export async function enrollBatchJob(
   const campaign = await Campaign.find(payload.campaignId)
   if (!campaign) return // the campaign was deleted after this job was enqueued
 
-  const service = new CampaignEnrollmentService()
+  const service = await app.container.make(CampaignEnrollmentService)
 
   for (const contactId of payload.contactIds) {
     try {

@@ -1,3 +1,5 @@
+import app from '@adonisjs/core/services/app'
+import { inject } from '@adonisjs/core'
 import { randomUUID } from 'node:crypto'
 import { DateTime } from 'luxon'
 import type { Job } from 'bullmq'
@@ -19,7 +21,7 @@ import RemoveTagExecutor from '#services/automation/node_executors/remove_tag_ex
 import AddToSegmentExecutor from '#services/automation/node_executors/add_to_segment_executor'
 import RemoveFromSegmentExecutor from '#services/automation/node_executors/remove_from_segment_executor'
 import ConditionEvaluator from '#services/automation/node_executors/condition_evaluator'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 import CampaignExecutionCompleted from '#events/campaign_execution_completed'
 import CampaignExecutionCancelled from '#events/campaign_execution_cancelled'
 import CampaignExecutionFailed from '#events/campaign_execution_failed'
@@ -38,21 +40,6 @@ export interface AdvancePayload {
 }
 
 const LOOP_GUARD_THRESHOLD = 50
-const conditionEvaluator = new ConditionEvaluator()
-
-const executorsBySubtype: Record<string, NodeExecutor> = {
-  segment: new SourceExecutor(),
-  wait: new WaitExecutor(),
-  send_email: new SendEmailExecutor(),
-  add_tag: new AddTagExecutor(),
-  remove_tag: new RemoveTagExecutor(),
-  add_to_segment: new AddToSegmentExecutor(),
-  remove_from_segment: new RemoveFromSegmentExecutor(),
-  contact_field: conditionEvaluator,
-  in_segment: conditionEvaluator,
-  email_opened: conditionEvaluator,
-  email_clicked: conditionEvaluator,
-}
 
 /**
  * `advance()` is the sole entry point for progressing a `campaign_execution`
@@ -64,14 +51,42 @@ const executorsBySubtype: Record<string, NodeExecutor> = {
  * (tracked per-job via `loopGuardCount`, not in-memory across an unbounded
  * synchronous loop).
  */
+@inject()
 export default class CampaignEngineService {
-  #lockService = new ExecutionLockService()
+  readonly #executorsBySubtype: Record<string, NodeExecutor>
+
+  constructor(
+    protected queueDispatcher: QueueDispatcher,
+    protected lockService: ExecutionLockService,
+    conditionEvaluator: ConditionEvaluator,
+    sourceExecutor: SourceExecutor,
+    waitExecutor: WaitExecutor,
+    sendEmailExecutor: SendEmailExecutor,
+    addTagExecutor: AddTagExecutor,
+    removeTagExecutor: RemoveTagExecutor,
+    addToSegmentExecutor: AddToSegmentExecutor,
+    removeFromSegmentExecutor: RemoveFromSegmentExecutor
+  ) {
+    this.#executorsBySubtype = {
+      segment: sourceExecutor,
+      wait: waitExecutor,
+      send_email: sendEmailExecutor,
+      add_tag: addTagExecutor,
+      remove_tag: removeTagExecutor,
+      add_to_segment: addToSegmentExecutor,
+      remove_from_segment: removeFromSegmentExecutor,
+      contact_field: conditionEvaluator,
+      in_segment: conditionEvaluator,
+      email_opened: conditionEvaluator,
+      email_clicked: conditionEvaluator,
+    }
+  }
 
   async advance(payload: AdvancePayload, _job?: Job<AdvancePayload>): Promise<void> {
     const workerId = `worker-${process.pid}-${randomUUID().slice(0, 8)}`
     const loopGuardCount = payload.loopGuardCount ?? 0
 
-    const execution = await this.#lockService.acquire(payload.executionId, workerId)
+    const execution = await this.lockService.acquire(payload.executionId, workerId)
     if (!execution) return // another worker already holds a fresh lock — silent no-op
 
     const enrollment = await CampaignEnrollment.query()
@@ -89,7 +104,7 @@ export default class CampaignEngineService {
       // terminal state) and incorrectly flip an already-`completed`
       // enrollment to `cancelled`, corrupting good historical state.
       if (['completed', 'failed', 'cancelled'].includes(execution.status)) {
-        await this.#lockService.release(execution.id, execution.lockVersion, {
+        await this.lockService.release(execution.id, execution.lockVersion, {
           status: execution.status,
           currentNodeId: execution.currentNodeId,
           scheduledAt: execution.scheduledAt,
@@ -107,7 +122,7 @@ export default class CampaignEngineService {
       // in depth, not just confidence in the trigger" principle
       // docs/plans/05-contacts.md applies to the soft-delete cascade).
       if (execution.status === 'waiting' && execution.scheduledAt > DateTime.now()) {
-        await this.#lockService.release(execution.id, execution.lockVersion, {
+        await this.lockService.release(execution.id, execution.lockVersion, {
           status: execution.status,
           currentNodeId: execution.currentNodeId,
           scheduledAt: execution.scheduledAt,
@@ -123,7 +138,7 @@ export default class CampaignEngineService {
       // (docs/plans/10-campaigns.md § Domain concepts, docs/plans/12-campaign-engine.md
       // § Edge cases).
       if (campaign.status !== 'active') {
-        await this.#lockService.release(execution.id, execution.lockVersion, {
+        await this.lockService.release(execution.id, execution.lockVersion, {
           status: execution.status,
           currentNodeId: execution.currentNodeId,
           scheduledAt: execution.scheduledAt,
@@ -175,7 +190,7 @@ export default class CampaignEngineService {
           : await this.#executeNode(node, execution, contact)
 
       if (result.outcome === 'wait') {
-        await this.#lockService.release(execution.id, execution.lockVersion, {
+        await this.lockService.release(execution.id, execution.lockVersion, {
           status: 'waiting',
           currentNodeId: node.id,
           scheduledAt: result.scheduledAt,
@@ -207,7 +222,7 @@ export default class CampaignEngineService {
           return
         }
 
-        await this.#lockService.release(execution.id, execution.lockVersion, {
+        await this.lockService.release(execution.id, execution.lockVersion, {
           status: 'pending',
           currentNodeId: nextEdge.targetNodeId,
           scheduledAt: DateTime.now(),
@@ -215,7 +230,7 @@ export default class CampaignEngineService {
         })
         await this.#logEvent(execution.id, node.id, 'node_executed', result.note)
 
-        await queueDispatcher.dispatch('campaign-engine', 'campaign-engine.advance', {
+        await this.queueDispatcher.dispatch('campaign-engine', 'campaign-engine.advance', {
           executionId: execution.id,
           loopGuardCount: nextLoopGuardCount,
         })
@@ -242,7 +257,7 @@ export default class CampaignEngineService {
       // (docs/plans/12-campaign-engine.md § Concurrence — staleness is the
       // crash-recovery path, not the intended path for an error we already
       // know about and are actively propagating for retry).
-      await this.#lockService.release(execution.id, execution.lockVersion, {
+      await this.lockService.release(execution.id, execution.lockVersion, {
         status: execution.status,
         currentNodeId: execution.currentNodeId,
         scheduledAt: execution.scheduledAt,
@@ -259,7 +274,7 @@ export default class CampaignEngineService {
     execution: CampaignExecution,
     contact: Contact
   ): Promise<NextStep> {
-    const executor = executorsBySubtype[node.subtype]
+    const executor = this.#executorsBySubtype[node.subtype]
     if (!executor) {
       // The graph was already structurally validated at publish time
       // (docs/plans/11-campaign-builder.md), so an unknown subtype here is
@@ -273,7 +288,7 @@ export default class CampaignEngineService {
   }
 
   async #complete(execution: CampaignExecution, enrollment: CampaignEnrollment): Promise<void> {
-    await this.#lockService.release(execution.id, execution.lockVersion, {
+    await this.lockService.release(execution.id, execution.lockVersion, {
       status: 'completed',
       finishedAt: DateTime.now(),
     })
@@ -289,7 +304,7 @@ export default class CampaignEngineService {
     enrollment: CampaignEnrollment,
     reason: string
   ): Promise<void> {
-    await this.#lockService.release(execution.id, execution.lockVersion, {
+    await this.lockService.release(execution.id, execution.lockVersion, {
       status: 'cancelled',
       finishedAt: DateTime.now(),
     })
@@ -309,7 +324,7 @@ export default class CampaignEngineService {
     enrollment: CampaignEnrollment,
     reason: string
   ): Promise<void> {
-    await this.#lockService.release(execution.id, execution.lockVersion, {
+    await this.lockService.release(execution.id, execution.lockVersion, {
       status: 'failed',
       finishedAt: DateTime.now(),
       lastError: reason,
@@ -337,6 +352,6 @@ export default class CampaignEngineService {
 
 /** Registered as the `campaign-engine:campaign-engine.advance` handler (start/jobs.ts). */
 export async function advanceExecutionJob(payload: AdvancePayload, job: Job<AdvancePayload>) {
-  const service = new CampaignEngineService()
+  const service = await app.container.make(CampaignEngineService)
   await service.advance(payload, job)
 }

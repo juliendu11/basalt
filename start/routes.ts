@@ -85,6 +85,9 @@ router
               .delete('/', [controllers.organizations.Organizations, 'destroy'])
               .as('organizations.destroy')
             router
+              .delete('/contacts', [controllers.organizations.Organizations, 'truncateContacts'])
+              .as('organizations.truncate_contacts')
+            router
               .post('/switch', [controllers.organizations.Organizations, 'switch'])
               .as('organizations.switch')
 
@@ -443,6 +446,18 @@ router
                     'recompute',
                   ])
                   .as('segments.recompute')
+                router
+                  .post('/segments/:segmentId/contacts/:contactId/exclude', [
+                    controllers.segments.Segments,
+                    'excludeContact',
+                  ])
+                  .as('segments.contacts.exclude')
+                router
+                  .post('/segments/:segmentId/contacts/:contactId/restore', [
+                    controllers.segments.Segments,
+                    'restoreContact',
+                  ])
+                  .as('segments.contacts.restore')
 
                 router
                   .get('/campaigns', [controllers.campaigns.Campaigns, 'index'])

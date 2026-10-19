@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
@@ -22,12 +23,12 @@ const organizationService = new OrganizationService()
 const membershipService = new OrganizationMembershipService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const segmentService = new SegmentService()
-const campaignService = new CampaignService()
-const builderService = new CampaignBuilderService()
-const emailService = new EmailService()
+const segmentService = await app.container.make(SegmentService)
+const campaignService = await app.container.make(CampaignService)
+const builderService = await app.container.make(CampaignBuilderService)
+const emailService = await app.container.make(EmailService)
 const unsubscribeTokenService = new UnsubscribeTokenService()
-const engine = new CampaignEngineService()
+const engine = await app.container.make(CampaignEngineService)
 
 async function createFixtures() {
   const owner = await UserFactory.create()

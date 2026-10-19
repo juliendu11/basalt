@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import nodemailer from 'nodemailer'
 import { DateTime } from 'luxon'
 import env from '#start/env'
@@ -36,12 +37,6 @@ interface FrozenSendEmailConfig {
 const TERMINAL_STATUSES = ['sent', 'delivered', 'failed', 'bounced']
 const SEND_TIMEOUT_MS = 15_000
 
-const smtpConnectorService = new SmtpConnectorService()
-const idempotentOperation = new IdempotentOperation()
-const deliveryTokenService = new DeliveryTokenService()
-const trackingContentRewriter = new TrackingContentRewriter()
-const unsubscribeService = new UnsubscribeService()
-
 /**
  * The most safety-critical executor in the engine: the one whose side
  * effect (a real SMTP send) can never safely be repeated blindly. Uses the
@@ -52,7 +47,16 @@ const unsubscribeService = new UnsubscribeService()
  * `${execution.id}:${node.id}` so a crashed-and-retried job can never send
  * the same message twice under normal operation.
  */
+@inject()
 export default class SendEmailExecutor implements NodeExecutor {
+  constructor(
+    protected smtpConnectorService: SmtpConnectorService,
+    protected idempotentOperation: IdempotentOperation,
+    protected deliveryTokenService: DeliveryTokenService,
+    protected trackingContentRewriter: TrackingContentRewriter,
+    protected unsubscribeService: UnsubscribeService
+  ) {}
+
   async execute(
     execution: CampaignExecution,
     node: CampaignNode,
@@ -75,7 +79,7 @@ export default class SendEmailExecutor implements NodeExecutor {
 
     const connector = await this.#resolveConnector(campaign.projectId, config.smtpConnectorId)
 
-    const reservation = await idempotentOperation.reserve({
+    const reservation = await this.idempotentOperation.reserve({
       table: 'email_deliveries',
       idempotencyKey,
       insertRow: {
@@ -128,7 +132,7 @@ export default class SendEmailExecutor implements NodeExecutor {
     }
 
     if (!connector) {
-      await idempotentOperation.complete('email_deliveries', reservation.rowId, 'processing', {
+      await this.idempotentOperation.complete('email_deliveries', reservation.rowId, 'processing', {
         status: 'failed',
         last_error: 'No SMTP connector available for this project (none configured or enabled).',
       })
@@ -138,7 +142,7 @@ export default class SendEmailExecutor implements NodeExecutor {
     try {
       const info = await this.#send(connector, config, contact, project, reservation.rowId)
 
-      await idempotentOperation.complete('email_deliveries', reservation.rowId, 'processing', {
+      await this.idempotentOperation.complete('email_deliveries', reservation.rowId, 'processing', {
         status: 'sent',
         sent_at: DateTime.now().toSQL({ includeOffset: false }),
         provider_message_id: info.messageId ?? null,
@@ -149,10 +153,15 @@ export default class SendEmailExecutor implements NodeExecutor {
       const classified = classifySmtpError(error)
 
       if (classified instanceof NonRetryableError) {
-        await idempotentOperation.complete('email_deliveries', reservation.rowId, 'processing', {
-          status: 'failed',
-          last_error: classified.message,
-        })
+        await this.idempotentOperation.complete(
+          'email_deliveries',
+          reservation.rowId,
+          'processing',
+          {
+            status: 'failed',
+            last_error: classified.message,
+          }
+        )
       }
       // Retryable: leave the row in `processing` — a subsequent retry
       // resumes this same reservation (once stale) rather than creating a
@@ -169,7 +178,7 @@ export default class SendEmailExecutor implements NodeExecutor {
     project: Project,
     deliveryId: number
   ): Promise<{ messageId?: string }> {
-    const decrypted = smtpConnectorService.decryptedConfig(connector)
+    const decrypted = this.smtpConnectorService.decryptedConfig(connector)
 
     const transport = nodemailer.createTransport({
       host: decrypted.host,
@@ -206,7 +215,7 @@ export default class SendEmailExecutor implements NodeExecutor {
       },
       project: { name: project.name },
       subject: config.subject,
-      unsubscribeUrl: await unsubscribeService.urlFor(project, contact),
+      unsubscribeUrl: await this.unsubscribeService.urlFor(project, contact),
     }
 
     // Subject and text are plain text (an SMTP header, a text/plain body) —
@@ -227,8 +236,8 @@ export default class SendEmailExecutor implements NodeExecutor {
     // `email_deliveries` row's own id exists, i.e. after the idempotency
     // reservation succeeded — hence this happening here, in `#send()`, not
     // earlier.
-    const deliveryToken = deliveryTokenService.encode(deliveryId)
-    const trackedHtml = trackingContentRewriter.rewrite(
+    const deliveryToken = this.deliveryTokenService.encode(deliveryId)
+    const trackedHtml = this.trackingContentRewriter.rewrite(
       renderedHtml,
       deliveryToken,
       env.get('APP_URL')

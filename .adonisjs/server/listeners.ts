@@ -4,6 +4,7 @@
  */
 
 export const listeners = {
+  CancelEnrollmentsOnSegmentMembershipRemoved: () => import('#listeners/cancel_enrollments_on_segment_membership_removed'),
   EnrollContactsOnSegmentMembershipAdded: () => import('#listeners/enroll_contacts_on_segment_membership_added'),
   EnrollExistingSegmentMembersOnCampaignActivated: () => import('#listeners/enroll_existing_segment_members_on_campaign_activated'),
   RecomputeSegmentsOnContactChange: () => import('#listeners/recompute_segments_on_contact_change'),

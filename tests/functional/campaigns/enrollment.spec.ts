@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import { Worker } from 'bullmq'
@@ -16,16 +17,20 @@ import CampaignEnrollmentService, {
 } from '#services/campaigns/campaign_enrollment_service'
 import SegmentMembershipAdded from '#events/segment_membership_added'
 import { queueConnection } from '#config/queue'
-import queueRegistry from '#services/jobs/queue_registry'
-import jobHandlerRegistry from '#services/jobs/job_handler_registry'
+import QueueRegistry from '#services/jobs/queue_registry'
+import JobHandlerRegistry from '#services/jobs/job_handler_registry'
 import type { BuilderEdge, BuilderNode } from '#types/campaign_graph'
+
+const jobHandlerRegistry = await app.container.make(JobHandlerRegistry)
+
+const queueRegistry = await app.container.make(QueueRegistry)
 
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const segmentService = new SegmentService()
-const campaignService = new CampaignService()
-const builderService = new CampaignBuilderService()
+const segmentService = await app.container.make(SegmentService)
+const campaignService = await app.container.make(CampaignService)
+const builderService = await app.container.make(CampaignBuilderService)
 
 async function createPublishedCampaign(reentryPolicy?: 'never' | 'after_exit' | 'always') {
   const owner = await UserFactory.create()
@@ -241,7 +246,7 @@ test.group('Campaign enrollment (functional, end-to-end)', () => {
     const owner = await UserFactory.create()
     const contact = await contactService.create(project, owner, { email: 'loop@example.com' })
 
-    const enrollmentService = new CampaignEnrollmentService()
+    const enrollmentService = await app.container.make(CampaignEnrollmentService)
 
     await enrollmentService.enroll(campaign, contact, segment.id)
     const first = await CampaignEnrollment.query()
@@ -272,7 +277,7 @@ test.group('Campaign enrollment (functional, end-to-end)', () => {
       email: 'good-b@example.com',
     })
 
-    const enrollmentService = new CampaignEnrollmentService()
+    const enrollmentService = await app.container.make(CampaignEnrollmentService)
 
     // Pre-enroll goodContactA so it already has a terminal enrollment under
     // 'never' — this contact will be silently skipped (not a crash) by

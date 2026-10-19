@@ -1,8 +1,9 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import TrackingContentRewriter from '#services/tracking/tracking_content_rewriter'
 import DeliveryTokenService from '#services/tracking/delivery_token_service'
 
-const rewriter = new TrackingContentRewriter()
+const rewriter = await app.container.make(TrackingContentRewriter)
 const deliveryTokenService = new DeliveryTokenService()
 const BASE_URL = 'https://app.example.test'
 const TOKEN = 'abc123.def456'

@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { UserFactory } from '#database/factories/user_factory'
 import OrganizationService from '#services/organizations/organization_service'
@@ -9,7 +10,7 @@ import EmailLayout from '#models/email_layout'
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const emailLayoutService = new EmailLayoutService()
-const emailService = new EmailService()
+const emailService = await app.container.make(EmailService)
 
 async function createProject() {
   const owner = await UserFactory.create()

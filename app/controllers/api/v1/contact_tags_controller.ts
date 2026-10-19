@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
 import Contact from '#models/contact'
@@ -8,10 +9,11 @@ const attachTagValidator = vine.create({
   name: vine.string().trim().minLength(1).maxLength(120),
 })
 
-const contactTagService = new ContactTagService()
-
 /** Same `ContactTagService` as the web `ContactTagsController` — see its docstring. */
+@inject()
 export default class ApiContactTagsController {
+  constructor(protected contactTagService: ContactTagService) {}
+
   async attach({ project, params, request, apiKey, serialize, response }: HttpContext) {
     const contact = await Contact.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -23,7 +25,7 @@ export default class ApiContactTagsController {
     }
 
     const { name } = await request.validateUsing(attachTagValidator)
-    await contactTagService.attach(project, contact, apiKey.creator, name)
+    await this.contactTagService.attach(project, contact, apiKey.creator, name)
     await contact.load('tags')
 
     return serialize(ContactTransformer.transform(contact))
@@ -39,7 +41,7 @@ export default class ApiContactTagsController {
       return response.status(404).send({ errors: [{ message: 'Contact not found' }] })
     }
 
-    await contactTagService.detach(contact, apiKey.creator, Number(params.tagId))
+    await this.contactTagService.detach(contact, apiKey.creator, Number(params.tagId))
     await contact.load('tags')
 
     return serialize(ContactTransformer.transform(contact))

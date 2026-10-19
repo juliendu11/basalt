@@ -1,5 +1,6 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 import DeliveryTokenService from '#services/tracking/delivery_token_service'
 
 // 1x1 transparent GIF, served byte-identically for every request regardless
@@ -11,20 +12,24 @@ const TRANSPARENT_GIF = Buffer.from(
   'base64'
 )
 
-const deliveryTokenService = new DeliveryTokenService()
-
 /**
  * PUBLIC routes (docs/plans/16-email-tracking.md § Routes) — no session, no
  * CSRF, no project/organization context. Security relies entirely on the
  * unforgeable `deliveryToken`, not on any auth middleware.
  */
+@inject()
 export default class TrackingController {
+  constructor(
+    protected deliveryTokenService: DeliveryTokenService,
+    protected queueDispatcher: QueueDispatcher
+  ) {}
+
   /** GET /track/open/:deliveryToken.gif */
   async open({ params, request, response }: HttpContext) {
-    const deliveryId = deliveryTokenService.decode(params.deliveryToken)
+    const deliveryId = this.deliveryTokenService.decode(params.deliveryToken)
 
     if (deliveryId !== null) {
-      await queueDispatcher.dispatch('tracking', 'tracking.process_event', {
+      await this.queueDispatcher.dispatch('tracking', 'tracking.process_event', {
         deliveryId,
         type: 'opened',
         metadata: {
@@ -41,7 +46,7 @@ export default class TrackingController {
 
   /** GET /track/click/:deliveryToken */
   async click({ params, request, response }: HttpContext) {
-    const deliveryId = deliveryTokenService.decode(params.deliveryToken)
+    const deliveryId = this.deliveryTokenService.decode(params.deliveryToken)
     const rawUrl = request.input('u')
     const signature = request.input('s')
     const targetUrl = this.#validRedirectTarget(rawUrl)
@@ -58,13 +63,13 @@ export default class TrackingController {
       deliveryId !== null &&
       targetUrl !== null &&
       typeof signature === 'string' &&
-      deliveryTokenService.verifyUrl(params.deliveryToken, targetUrl, signature)
+      this.deliveryTokenService.verifyUrl(params.deliveryToken, targetUrl, signature)
 
     if (!authorized) {
       return response.status(404).send('')
     }
 
-    await queueDispatcher.dispatch('tracking', 'tracking.process_event', {
+    await this.queueDispatcher.dispatch('tracking', 'tracking.process_event', {
       deliveryId,
       type: 'clicked',
       metadata: {

@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
@@ -11,7 +12,7 @@ import OrganizationMembershipService from '#services/organizations/organization_
 const organizationService = new OrganizationService()
 const projectService = new ProjectService()
 const contactService = new ContactService()
-const campaignService = new CampaignService()
+const campaignService = await app.container.make(CampaignService)
 const membershipService = new OrganizationMembershipService()
 
 async function createProject(name = 'Marketing') {

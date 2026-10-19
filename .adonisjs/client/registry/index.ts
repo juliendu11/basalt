@@ -108,6 +108,12 @@ const routes = {
     tokens: [{"old":"/organizations/:organizationId","type":0,"val":"organizations","end":""},{"old":"/organizations/:organizationId","type":1,"val":"organizationId","end":""}],
     types: placeholder as Registry['organizations.destroy']['types'],
   },
+  'organizations.truncate_contacts': {
+    methods: ["DELETE"],
+    pattern: '/organizations/:organizationId/contacts',
+    tokens: [{"old":"/organizations/:organizationId/contacts","type":0,"val":"organizations","end":""},{"old":"/organizations/:organizationId/contacts","type":1,"val":"organizationId","end":""},{"old":"/organizations/:organizationId/contacts","type":0,"val":"contacts","end":""}],
+    types: placeholder as Registry['organizations.truncate_contacts']['types'],
+  },
   'organizations.switch': {
     methods: ["POST"],
     pattern: '/organizations/:organizationId/switch',
@@ -623,6 +629,18 @@ const routes = {
     pattern: '/organizations/:organizationId/projects/:projectId/segments/:segmentId/recompute',
     tokens: [{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/recompute","type":0,"val":"organizations","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/recompute","type":1,"val":"organizationId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/recompute","type":0,"val":"projects","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/recompute","type":1,"val":"projectId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/recompute","type":0,"val":"segments","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/recompute","type":1,"val":"segmentId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/recompute","type":0,"val":"recompute","end":""}],
     types: placeholder as Registry['segments.recompute']['types'],
+  },
+  'segments.contacts.exclude': {
+    methods: ["POST"],
+    pattern: '/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude',
+    tokens: [{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude","type":0,"val":"organizations","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude","type":1,"val":"organizationId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude","type":0,"val":"projects","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude","type":1,"val":"projectId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude","type":0,"val":"segments","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude","type":1,"val":"segmentId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude","type":0,"val":"contacts","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude","type":1,"val":"contactId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/exclude","type":0,"val":"exclude","end":""}],
+    types: placeholder as Registry['segments.contacts.exclude']['types'],
+  },
+  'segments.contacts.restore': {
+    methods: ["POST"],
+    pattern: '/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore',
+    tokens: [{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore","type":0,"val":"organizations","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore","type":1,"val":"organizationId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore","type":0,"val":"projects","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore","type":1,"val":"projectId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore","type":0,"val":"segments","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore","type":1,"val":"segmentId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore","type":0,"val":"contacts","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore","type":1,"val":"contactId","end":""},{"old":"/organizations/:organizationId/projects/:projectId/segments/:segmentId/contacts/:contactId/restore","type":0,"val":"restore","end":""}],
+    types: placeholder as Registry['segments.contacts.restore']['types'],
   },
   'campaigns.index': {
     methods: ["GET","HEAD"],

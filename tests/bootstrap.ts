@@ -8,7 +8,7 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { authApiClient } from '@adonisjs/auth/plugins/api_client'
 import { sessionApiClient } from '@adonisjs/session/plugins/api_client'
 import { shieldApiClient } from '@adonisjs/shield/plugins/api_client'
-import queueRegistry from '#services/jobs/queue_registry'
+import QueueRegistry from '#services/jobs/queue_registry'
 
 /**
  * This file is imported by the "bin/test.ts" entrypoint file
@@ -40,7 +40,12 @@ export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
   // Closes the BullMQ Queue connections opened by tests that dispatch jobs
   // (docs/plans/14-jobs-and-queues.md) — otherwise the open Redis sockets
   // keep the test process alive after the suite finishes.
-  teardown: [() => queueRegistry.closeAll()],
+  teardown: [
+    async () => {
+      const queueRegistry = await app.container.make(QueueRegistry)
+      await queueRegistry.closeAll()
+    },
+  ],
 }
 
 /**

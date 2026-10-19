@@ -1,12 +1,10 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Contact, { type ContactStatus } from '#models/contact'
 import ContactService from '#services/contacts/contact_service'
 import ContactQueryService from '#services/contacts/contact_query_service'
 import { createContactValidator, updateContactValidator } from '#validators/contact'
 import ContactTransformer from '#transformers/contact_transformer'
-
-const contactService = new ContactService()
-const contactQueryService = new ContactQueryService()
 
 /**
  * Public API surface for external services to manage contacts
@@ -19,7 +17,13 @@ const contactQueryService = new ContactQueryService()
  * the web UI uses, so behavior (email uniqueness, status transitions, soft
  * delete, segment-recompute-triggering tag changes) is identical either way.
  */
+@inject()
 export default class ApiContactsController {
+  constructor(
+    protected contactService: ContactService,
+    protected contactQueryService: ContactQueryService
+  ) {}
+
   async index({ project, request, serialize }: HttpContext) {
     const filters = {
       search: request.input('search') || undefined,
@@ -29,7 +33,7 @@ export default class ApiContactsController {
       page: request.input('page') ? Number(request.input('page')) : undefined,
     }
 
-    const page = await contactQueryService.paginate(project, filters)
+    const page = await this.contactQueryService.paginate(project, filters)
     return serialize(ContactTransformer.paginate(page.all(), page.getMeta()))
   }
 
@@ -37,7 +41,7 @@ export default class ApiContactsController {
     const payload = await request.validateUsing(createContactValidator, {
       meta: { projectId: project.id },
     })
-    const contact = await contactService.create(project, apiKey.creator, payload)
+    const contact = await this.contactService.create(project, apiKey.creator, payload)
 
     response.status(201)
     return serialize(ContactTransformer.transform(contact))
@@ -70,7 +74,7 @@ export default class ApiContactsController {
     const payload = await request.validateUsing(updateContactValidator, {
       meta: { projectId: project.id, contactId: contact.id },
     })
-    await contactService.update(contact, apiKey.creator, payload)
+    await this.contactService.update(contact, apiKey.creator, payload)
 
     return serialize(ContactTransformer.transform(contact))
   }
@@ -85,7 +89,7 @@ export default class ApiContactsController {
       return response.status(404).send({ errors: [{ message: 'Contact not found' }] })
     }
 
-    await contactService.softDelete(contact, apiKey.creator)
+    await this.contactService.softDelete(contact, apiKey.creator)
 
     return response.status(204).send('')
   }

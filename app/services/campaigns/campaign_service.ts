@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type User from '#models/user'
 import type Project from '#models/project'
@@ -18,9 +19,10 @@ export interface CampaignPayload {
 
 const ARCHIVABLE_STATUSES = new Set(['draft', 'active', 'paused', 'completed'])
 
-const campaignBuilderService = new CampaignBuilderService()
-
+@inject()
 export default class CampaignService {
+  constructor(protected campaignBuilderService: CampaignBuilderService) {}
+
   /**
    * Transaction: creates the `Campaign` plus its first, empty
    * `CampaignVersion` (draft, docs/plans/decisions/ADR-004-campaign-versioning.md)
@@ -62,7 +64,7 @@ export default class CampaignService {
         .where('id', sourceVersionId!)
         .firstOrFail()
 
-      await campaignBuilderService.cloneVersionIntoCampaign(sourceVersion, copy, actor, trx)
+      await this.campaignBuilderService.cloneVersionIntoCampaign(sourceVersion, copy, actor, trx)
 
       return copy
     })

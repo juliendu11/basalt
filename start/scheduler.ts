@@ -10,9 +10,14 @@
 */
 
 import Segment from '#models/segment'
-import scheduledTaskRegistry from '#services/jobs/scheduled_task_registry'
-import queueDispatcher from '#services/jobs/queue_dispatcher'
+import app from '@adonisjs/core/services/app'
+import ScheduledTaskRegistry from '#services/jobs/scheduled_task_registry'
+import QueueDispatcher from '#services/jobs/queue_dispatcher'
 import ExecutionSchedulerService from '#services/automation/execution_scheduler_service'
+
+const scheduledTaskRegistry = await app.container.make(ScheduledTaskRegistry)
+const queueDispatcher = await app.container.make(QueueDispatcher)
+const executionSchedulerService = await app.container.make(ExecutionSchedulerService)
 
 /**
  * Nightly full-recompute safety net for every segment of every project
@@ -46,8 +51,6 @@ scheduledTaskRegistry.register(
  * and enqueues one `campaign-engine.advance` job per execution, in bounded
  * batches via `ExecutionSchedulerService.findDueExecutions`.
  */
-const executionSchedulerService = new ExecutionSchedulerService()
-
 scheduledTaskRegistry.register(
   'campaign-engine.schedule_due_executions',
   { type: 'interval', everySeconds: 60 },

@@ -1,3 +1,4 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
 import Contact from '#models/contact'
@@ -8,9 +9,10 @@ const attachTagValidator = vine.create({
   name: vine.string().trim().minLength(1).maxLength(120),
 })
 
-const contactTagService = new ContactTagService()
-
+@inject()
 export default class ContactTagsController {
+  constructor(protected contactTagService: ContactTagService) {}
+
   async attach({ project, params, request, auth, bouncer, response, session }: HttpContext) {
     await bouncer.with(ContactPolicy).authorize('update', project)
 
@@ -21,7 +23,7 @@ export default class ContactTagsController {
 
     const { name } = await request.validateUsing(attachTagValidator)
 
-    const tag = await contactTagService.attach(project, contact, auth.user!, name)
+    const tag = await this.contactTagService.attach(project, contact, auth.user!, name)
 
     session.flash('success', `Tag "${tag.name}" added.`)
     return response.redirect().back()
@@ -35,7 +37,7 @@ export default class ContactTagsController {
       .where('id', params.contactId)
       .firstOrFail()
 
-    await contactTagService.detach(contact, auth.user!, Number(params.tagId))
+    await this.contactTagService.detach(contact, auth.user!, Number(params.tagId))
 
     session.flash('success', 'Tag removed.')
     return response.redirect().back()

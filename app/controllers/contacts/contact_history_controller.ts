@@ -1,9 +1,8 @@
+import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import Contact from '#models/contact'
 import ProjectTransformer from '#transformers/project_transformer'
 import ContactHistoryService from '#services/audit/contact_history_service'
-
-const contactHistoryService = new ContactHistoryService()
 
 /**
  * Standard project read permission — every role including `viewer`
@@ -13,7 +12,10 @@ const contactHistoryService = new ContactHistoryService()
  * membership itself (already enforced by `project_context_middleware`) is
  * the only gate, same pattern as `StatisticsController`.
  */
+@inject()
 export default class ContactHistoryController {
+  constructor(protected contactHistoryService: ContactHistoryService) {}
+
   async index({ project, params, request, inertia }: HttpContext) {
     const contact = await Contact.query()
       .withScopes((scopes) => scopes.forProject(project))
@@ -21,7 +23,7 @@ export default class ContactHistoryController {
       .firstOrFail()
 
     const page = request.input('page') ? Number(request.input('page')) : 1
-    const history = await contactHistoryService.build(contact, page)
+    const history = await this.contactHistoryService.build(contact, page)
 
     return inertia.render('contacts/history', {
       project: ProjectTransformer.transform(project),
