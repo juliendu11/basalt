@@ -79,7 +79,7 @@ jobs:
         with:
           # Pinned to match the Dockerfile — floating node:24 has hit an
           # early-24.x WHATWG URL-parser regression that breaks `node ace`.
-          node-version: 24.15.0
+          node-version: 24.22.1
           cache: npm
 
       - name: Install dependencies
