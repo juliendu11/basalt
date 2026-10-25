@@ -4,7 +4,7 @@
 # (`resolve://`, `thismessage::/`), which made `@adonisjs/ace` throw
 # "Invalid URL" while validating command metadata — `node ace queue:work`
 # could not boot. Bump this deliberately.
-ARG NODE_IMAGE=node:24.15.0-alpine
+ARG NODE_IMAGE=node:24.22.1-alpine
 
 FROM ${NODE_IMAGE} AS base
 
