@@ -50,20 +50,20 @@ jobs:
 
       - name: Redeploy app
         run: |
-          curl -f -X POST "https://dokploy.julien-dacosta.dev/api/application.redeploy" \
+          curl -f -X POST "https://manage.julien-dacosta.dev/api/application.redeploy" \
             -H "x-api-key: ${{ secrets.DOKPLOY_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "applicationId": "cKxS-c3MG91xcEiyDPbkp"
+              "applicationId": "qhv_P-dNCPlDVGXK_J1ev"
             }'
 
       - name: Redeploy scheduler
         run: |
-          curl -f -X POST "https://dokploy.julien-dacosta.dev/api/application.redeploy" \
+          curl -f -X POST "https://manage.julien-dacosta.dev/api/application.redeploy" \
             -H "x-api-key: ${{ secrets.DOKPLOY_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "applicationId": "-iF56DX8v3kgja96nTQII"
+              "applicationId": "w_FXo4jcO3pWB3AGV5A_U"
             }'
 
       - name: Redeploy queue
@@ -72,5 +72,5 @@ jobs:
             -H "x-api-key: ${{ secrets.DOKPLOY_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "applicationId": "qhv_P-dNCPlDVGXK_J1ev"
+              "applicationId": "1xCOdngmVrHYacANr9mN4"
             }'
