@@ -68,9 +68,9 @@ jobs:
 
       - name: Redeploy queue
         run: |
-          curl -f -X POST "https://dokploy.julien-dacosta.dev/api/application.redeploy" \
+          curl -f -X POST "https://manage.julien-dacosta.dev/api/application.redeploy" \
             -H "x-api-key: ${{ secrets.DOKPLOY_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "applicationId": "dtogePYiK74Y0ay7D8Vxh"
+              "applicationId": "qhv_P-dNCPlDVGXK_J1ev"
             }'
